@@ -140,17 +140,16 @@ class About(Screen):
 		self["key_yellow"] = Button(_("Troubleshoot"))
 		self["key_blue"] = Button(_("Memory Info"))
 
-		self["actions"] = ActionMap(["ColorActions", "SetupActions", "DirectionActions"],
-			{
-				"cancel": self.close,
-				"ok": self.close,
-				"red": self.showCommits,
-				"green": self.showTranslationInfo,
-				"blue": self.showMemoryInfo,
-				"yellow": self.showTroubleshoot,
-				"up": self["AboutScrollLabel"].pageUp,
-				"down": self["AboutScrollLabel"].pageDown
-			})
+		self["actions"] = ActionMap(["ColorActions", "SetupActions", "DirectionActions"], {
+			"cancel": self.close,
+			"ok": self.close,
+			"red": self.showCommits,
+			"green": self.showTranslationInfo,
+			"blue": self.showMemoryInfo,
+			"yellow": self.showTroubleshoot,
+			"up": self["AboutScrollLabel"].pageUp,
+			"down": self["AboutScrollLabel"].pageDown
+		})
 
 	def showTranslationInfo(self):
 		self.session.open(TranslationInfo)
@@ -396,13 +395,6 @@ class SystemNetworkInfo(Screen):
 		self["devicepic"] = MultiPixmap()
 
 		self["AboutScrollLabel"] = ScrollLabel()
-		self["key_red"] = StaticText(_("Close"))
-		self["actions"] = ActionMap(["SetupActions", "ColorActionsAbout", "DirectionActions"], {
-			"cancel": self.close,
-			"ok": self.close,
-			"up": self["AboutScrollLabel"].pageUp,
-			"down": self["AboutScrollLabel"].pageDown
-		})
 
 		self.iface = None
 		self.createscreen()
@@ -417,7 +409,14 @@ class SystemNetworkInfo(Screen):
 				pass
 			self.resetList()
 			self.onClose.append(self.cleanup)
+		self["key_red"] = StaticText(_("Close"))
 
+		self["actions"] = ActionMap(["SetupActions", "ColorActions", "DirectionActions"], {
+			"cancel": self.close,
+			"ok": self.close,
+			"up": self["AboutScrollLabel"].pageUp,
+			"down": self["AboutScrollLabel"].pageDown
+		})
 		self.onLayoutFinish.append(self.updateStatusbar)
 
 	def createscreen(self):
@@ -717,8 +716,6 @@ class TranslationInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self.setTitle(_("Translation"))
-		self["key_red"] = StaticText(_("Cancel"))
-		self["TranslationInfo"] = StaticText(info)
 		# don't remove the string out of the _(), or it can't be "translated" anymore.
 
 		# TRANSLATORS: Add here whatever should be shown in the "translator" about screen, up to 6 lines (use \n for newline)
@@ -736,6 +733,8 @@ class TranslationInfo(Screen):
 			(type, value) = l
 			infomap[type] = value
 		print(infomap)
+		self["key_red"] = Button(_("Cancel"))
+		self["TranslationInfo"] = StaticText(info)
 
 		translator_name = infomap.get("Language-Team", "none")
 		if translator_name == "none":
@@ -745,7 +744,7 @@ class TranslationInfo(Screen):
 
 		self["actions"] = ActionMap(["SetupActions"], {
 			"cancel": self.close,
-			"ok": self.close,
+			"ok": self.close
 		})
 
 
@@ -756,15 +755,14 @@ class CommitInfo(Screen):
 		self.skinName = ["CommitInfo", "About"]
 		self["AboutScrollLabel"] = ScrollLabel(_("Please wait"))
 
-		self["actions"] = ActionMap(["SetupActions", "DirectionActions"],
-			{
-				"cancel": self.close,
-				"ok": self.close,
-				"up": self["AboutScrollLabel"].pageUp,
-				"down": self["AboutScrollLabel"].pageDown,
-				"left": self.left,
-				"right": self.right
-			})
+		self["actions"] = ActionMap(["SetupActions", "DirectionActions"], {
+			"cancel": self.close,
+			"ok": self.close,
+			"up": self["AboutScrollLabel"].pageUp,
+			"down": self["AboutScrollLabel"].pageDown,
+			"left": self.left,
+			"right": self.right
+		})
 
 		self["key_red"] = Button(_("Cancel"))
 
@@ -835,7 +833,15 @@ class CommitInfo(Screen):
 class MemoryInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		self["key_red"] = StaticText(_("Close"))
+
+		self["actions"] = ActionMap(["SetupActions", "ColorActions"], {
+			"cancel": self.close,
+			"ok": self.getMemoryInfo,
+			"green": self.getMemoryInfo,
+			"blue": self.clearMemory
+		})
+
+		self["key_red"] = Label(_("Cancel"))
 		self["key_green"] = Label(_("Refresh"))
 		self["key_blue"] = Label(_("Clear"))
 		self['lmemtext'] = Label()
@@ -846,14 +852,6 @@ class MemoryInfo(Screen):
 		self['pused'] = Label()
 		self["slide"] = ProgressBar()
 		self["slide"].setValue(100)
-
-		self["actions"] = ActionMap(["ColorActionsAbout"], {
-			"cancel": self.close,
-			"red": self.close,
-			"ok": self.getMemoryInfo,
-			"green": self.getMemoryInfo,
-			"blue": self.clearMemory,
-		})
 
 		self["params"] = MemoryInfoSkinParams()
 
@@ -938,7 +936,7 @@ class Troubleshoot(Screen):
 			"left": self.left,
 			"right": self.right,
 			"red": self.red,
-			"green": self.green,
+			"green": self.green
 		})
 
 		self.container = eConsoleAppContainer()
@@ -1048,5 +1046,5 @@ class Troubleshoot(Screen):
 		self.updateKeys()
 
 	def updateKeys(self):
-		self["key_red"].setText(_("Cancel") if self.commandIndex < self.numberOfCommands else _("Remove all logfiles"))
+		self["key_red"].setText(_("Close") if self.commandIndex < self.numberOfCommands else _("Remove all logfiles"))
 		self["key_green"].setText(_("Refresh") if self.commandIndex < self.numberOfCommands else _("Remove this logfile"))
