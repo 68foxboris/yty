@@ -509,10 +509,10 @@ class SystemNetworkInfo(Screen):
 		for line in result_tmp:
 			if 'Speed:' in line:
 				speed = line.split(': ')[1][:-4]
-				self.AboutText += _("Speed:") + "\t" + speed + _('Mb/s')
+				self.AboutText += _("Speed:") + "\t" + "\t" + speed + _('Mb/s')
 
 		hostname = open('/proc/sys/kernel/hostname').read()
-		self.AboutText += "\n" + _("Hostname:") + "\t" + hostname + "\n"
+		self.AboutText += "\n" + _("Hostname:") + "\t" + "\t" + hostname + "\n"
 		self["AboutScrollLabel"].setText(self.AboutText)
 
 	def cleanup(self):
@@ -554,7 +554,7 @@ class SystemNetworkInfo(Screen):
 								essid = _("No connection")
 							else:
 								essid = status[self.iface]["essid"]
-						self.AboutText += _('SSID:') + '\t' + essid + '\n'
+						self.AboutText += _('SSID:') + '\t'  + '\t' + essid + '\n'
 
 					if 'quality' in self:
 						if not status[self.iface]["quality"]:
@@ -571,7 +571,7 @@ class SystemNetworkInfo(Screen):
 								bitrate = _("Unsupported")
 							else:
 								bitrate = str(status[self.iface]["bitrate"]) + " Mb/s"
-						self.AboutText += _('Bitrate:') + '\t' + bitrate + '\n'
+						self.AboutText += _('Bitrate:') + '\t'  + '\t' + bitrate + '\n'
 
 					if 'signal' in self:
 						if not status[self.iface]["signal"]:
@@ -591,7 +591,7 @@ class SystemNetworkInfo(Screen):
 									encryption = _("Unsupported")
 							else:
 								encryption = _("Enabled")
-						self.AboutText += _('Encryption:') + '\t' + encryption + '\n'
+						self.AboutText += _('Encryption:') + '\t'  + '\t' + encryption + '\n'
 
 					if ((status[self.iface]["essid"] and status[self.iface]["essid"] == "off") or
 					    not status[self.iface]["accesspoint"] or
