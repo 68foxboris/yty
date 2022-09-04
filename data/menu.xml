@@ -62,7 +62,11 @@
 					<item entryID="time_setup" level="0" text="Time" weight="50"><screen module="Time" screen="Time" /></item>
 					<item level="0" entryID="user_interface"><setup id="userinterface"/></item>
 					<item level="0" text="GUI Skin" entryID="primary_skin_selector"><screen module="SkinSelector" screen="SkinSelector"/></item>
-					<item level="0" requires="FrontpanelDisplay" text="Display Skin" entryID="display_skin_selector"><screen module="SkinSelector" screen="LcdSkinSelector"/></item>
+					<menu entryID="display_selection" level="0" text="Front Panel Display" requires="Display">
+						<id val="lcd" />
+						<item entryID="display_skin_selector" level="0" text="Skin Setup" weight="5"><screen module="SkinSelector" screen="LcdSkinSelector" /></item>
+						<item entryID="lcd_setup" level="1" text="LCD Setup" weight="10"><setup id="FrontDisplay" /></item>
+						<item entryID="led_setup" level="1" text="LED Setup" weight="15"><setup id="LedDisplay" /></item>
 				</menu>
 				<!-- Menu / Setup / EPG -->
 				<menu entryID="epg_menu" level="0" text="EPG" weight="15">
@@ -130,7 +134,6 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 					</menu>
 				<item level="0" text="Network" entryID="network_setup"><screen module="NetworkSetup" screen="NetworkAdapterSelection"/></item>
 				<item level="1" text="Input devices" entryID="input_device_setup"><screen module="InputDeviceSetup" screen="InputDeviceSelection"/></item>
-				<item entryID="lcd_setup" requires="Display"><setup level="1" id="lcd"/></item>
 				<item entryID="keyboard_setup" text="Keyboard"><setup id="keyboard"/></item>
 				<item level="1" text="Hotkey" entryID="hotkey_setup"><screen module="Hotkey" screen="HotkeySetup"/></item>
 				</menu>
