@@ -1,5 +1,6 @@
 import sys
 import os
+from time import time
 from Tools.Profile import profile, profile_final
 profile("PYTHON_START")
 
