@@ -5,7 +5,7 @@ from enigma import eEPGCache, eListbox, eListboxPythonMultiContent, gFont, RT_HA
 from Tools.Alternatives import CompareWithAlternatives
 from Tools.LoadPixmap import LoadPixmap
 
-from time import localtime, time
+from time import localtime, time, strftime
 from Components.config import config
 from ServiceReference import ServiceReference
 from Tools.Directories import resolveFilename, SCOPE_CURRENT_SKIN
@@ -54,7 +54,7 @@ class EPGList(GUIComponent):
 		self.iconDistance = applySkinFactor(2)
 		self.colGap = applySkinFactor(10)
 		self.skinColumns = False
-		self.tw = applySkinFactor(90)
+		self.tw = applySkinFactor(120)
 		self.dy = 0
 
 		if type == EPG_TYPE_SINGLE:
@@ -147,11 +147,11 @@ class EPGList(GUIComponent):
 		for x in self.onSelChanged:
 			if x is not None:
 				x()
-#				try:
-#					x()
-#				except: # FIXME!!!
-#					print "FIXME in EPGList.selectionChanged"
-#					pass
+#                               try:
+#                                       x()
+#                               except: # FIXME!!!
+#                                       print("FIXME in EPGList.selectionChanged")
+#                                       pass
 
 	GUI_WIDGET = eListbox
 
@@ -178,11 +178,11 @@ class EPGList(GUIComponent):
 		if self.type == EPG_TYPE_SINGLE:
 			if self.skinColumns:
 				x = 0
-				self.weekday_rect = Rect(0, 0, self.gap(self.col[0]), height)
+				self.weekday_rect = Rect(0, 0, self.gap(self.col[0] + 100), height)
 				x += self.col[0]
-				self.datetime_rect = Rect(x, 0, self.gap(self.col[1]), height)
+				self.datetime_rect = Rect(x + 75, 0, self.gap(self.col[1] + 15), height)
 				x += self.col[1]
-				self.descr_rect = Rect(x, 0, width - x, height)
+				self.descr_rect = Rect(x + 85, 0, width - x, height)
 			else:
 				self.weekday_rect = Rect(0, 0, width // 20 * 2 - 10, height)
 				self.datetime_rect = Rect(width // 20 * 2, 0, width // 20 * 5 - 15, height)
@@ -192,7 +192,7 @@ class EPGList(GUIComponent):
 				x = 0
 				self.service_rect = Rect(x, 0, self.gap(self.col[0]), height)
 				x += self.col[0]
-				self.progress_rect = Rect(x, 8, self.gap(self.col[1]), height - 16)
+				self.progress_rect = Rect(x, 8, self.gap(self.col[1] + 80), height - 16)
 				self.start_end_rect = Rect(x, 0, self.gap(self.col[1]), height)
 				x += self.col[1]
 				self.descr_rect = Rect(x, 0, width - x, height)
@@ -210,11 +210,11 @@ class EPGList(GUIComponent):
 		else: # EPG_TYPE_SIMILAR
 			if self.skinColumns:
 				x = 0
-				self.weekday_rect = Rect(0, 0, self.gap(self.col[0]), height)
+				self.weekday_rect = Rect(0, 0, self.gap(self.col[0] + 100), height)
 				x += self.col[0]
-				self.datetime_rect = Rect(x, 0, self.gap(self.col[1]), height)
+				self.datetime_rect = Rect(x + 75, 0, self.gap(self.col[1] + 15), height)
 				x += self.col[1]
-				self.service_rect = Rect(x, 0, width - x, height)
+				self.service_rect = Rect(x + 85, 0, width - x, height)
 			else:
 				self.weekday_rect = Rect(0, 0, width // 20 * 2 - 10, height)
 				self.datetime_rect = Rect(width // 20 * 2, 0, width // 20 * 5 - 15, height)
@@ -237,11 +237,14 @@ class EPGList(GUIComponent):
 		r1 = self.weekday_rect
 		r2 = self.datetime_rect
 		r3 = self.descr_rect
+		split = int(r2.w * 0.55)
 		t = localtime(beginTime)
+		et = localtime(beginTime + duration)
 		res = [
 			None, # no private data needed
-			(eListboxPythonMultiContent.TYPE_TEXT, r1.x, r1.y, r1.w, r1.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, self.days[t[6]]),
-			(eListboxPythonMultiContent.TYPE_TEXT, r2.x, r2.y, r2.w, r1.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, "%02d.%02d, %02d:%02d" % (t[2], t[1], t[3], t[4]))
+			(eListboxPythonMultiContent.TYPE_TEXT, r1.x, r1.y, r1.w, r1.h, 0, RT_HALIGN_LEFT | RT_VALIGN_CENTER, strftime(config.usage.date.dayshort.value, t)),
+			(eListboxPythonMultiContent.TYPE_TEXT, r2.x, r2.y, split, r2.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, strftime(config.usage.time.short.value + " -", t)),
+			(eListboxPythonMultiContent.TYPE_TEXT, r2.x + split, r2.y, r2.w - split, r2.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, strftime(config.usage.time.short.value, et))
 		]
 		if clock_types:
 			for i in range(len(clock_types)):
@@ -256,11 +259,14 @@ class EPGList(GUIComponent):
 		r1 = self.weekday_rect
 		r2 = self.datetime_rect
 		r3 = self.service_rect
+		split = int(r2.w * 0.55)
 		t = localtime(beginTime)
+		et = localtime(beginTime + duration)
 		res = [
 			None,  # no private data needed
-			(eListboxPythonMultiContent.TYPE_TEXT, r1.x, r1.y, r1.w, r1.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, self.days[t[6]]),
-			(eListboxPythonMultiContent.TYPE_TEXT, r2.x, r2.y, r2.w, r1.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, "%2d.%02d, %02d:%02d" % (t[2], t[1], t[3], t[4]))
+			(eListboxPythonMultiContent.TYPE_TEXT, r1.x, r1.y, r1.w, r1.h, 0, RT_HALIGN_LEFT | RT_VALIGN_CENTER, strftime(config.usage.date.dayshort.value, t)),
+			(eListboxPythonMultiContent.TYPE_TEXT, r2.x, r2.y, split, r2.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, strftime(config.usage.time.short.value + " -", t)),
+			(eListboxPythonMultiContent.TYPE_TEXT, r2.x + split, r2.y, r2.w - split, r2.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, strftime(config.usage.time.short.value, et))
 		]
 		if clock_types:
 			for i in range(len(clock_types)):
@@ -287,9 +293,10 @@ class EPGList(GUIComponent):
 			if nowTime < beginTime:
 				begin = localtime(beginTime)
 				end = localtime(beginTime + duration)
+				split = int(r2.w * 0.55)
 				res.extend((
-					(eListboxPythonMultiContent.TYPE_TEXT, r4.x, r4.y, r4.w, r4.h, 1, RT_HALIGN_CENTER | RT_VALIGN_CENTER, "%02d.%02d - %02d.%02d" % (begin[3], begin[4], end[3], end[4])),
-					(eListboxPythonMultiContent.TYPE_TEXT, r3.x, r3.y, self.gap(self.tw), r3.h, 1, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, _("%d min") % (duration / 60)),
+					(eListboxPythonMultiContent.TYPE_TEXT, r2.x, r2.y, split, r2.h, 0, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, strftime(config.usage.time.short.value + "- ", begin)),
+					(eListboxPythonMultiContent.TYPE_TEXT, r2.x + split, r2.y, r2.w - split, r2.h, 0, RT_HALIGN_LEFT | RT_VALIGN_CENTER, strftime(config.usage.time.short.value, end)),
 					(eListboxPythonMultiContent.TYPE_TEXT, r3.x + self.tw, r3.y, r3.w, r3.h, 0, RT_HALIGN_LEFT | RT_VALIGN_CENTER, EventName)
 				))
 			else:
@@ -299,8 +306,8 @@ class EPGList(GUIComponent):
 				if remaining <= 0:
 					prefix = ""
 				res.extend((
-					(eListboxPythonMultiContent.TYPE_PROGRESS, r2.x, r2.y, r2.w, r2.h, percent),
-					(eListboxPythonMultiContent.TYPE_TEXT, r3.x, r3.y, self.gap(self.tw), r3.h, 1, RT_HALIGN_RIGHT | RT_VALIGN_CENTER, prefix + _("%d min") % remaining),
+					(eListboxPythonMultiContent.TYPE_PROGRESS, r2.x, r2.y, self.tw, r2.h, percent),
+					(eListboxPythonMultiContent.TYPE_TEXT, r3.x, r3.y, self.gap(self.tw), r3.h, 1, RT_HALIGN_CENTER, prefix + _("%d min") % remaining),
 					(eListboxPythonMultiContent.TYPE_TEXT, r3.x + self.tw, r3.y, r3.w, r3.h, 0, RT_HALIGN_LEFT | RT_VALIGN_CENTER, EventName)
 				))
 		return res
@@ -319,7 +326,7 @@ class EPGList(GUIComponent):
 		test.insert(0, 'X0RIBDTCn')
 		self.list = self.queryEPG(test)
 		self.l.setList(self.list)
-		#print(int(time()) - t)
+		#print(int(time() - t))
 		self.selectionChanged()
 
 	def updateMultiEPG(self, direction):
@@ -335,7 +342,7 @@ class EPGList(GUIComponent):
 					self.list[cnt] = (changecount, x[0], x[1], x[2], x[3], x[4], x[5], x[6])
 			cnt += 1
 		self.l.setList(self.list)
-		#print((int(time()) - t)
+		#print(int(time() - t))
 		self.selectionChanged()
 
 	def fillSingleEPG(self, service):
@@ -360,7 +367,7 @@ class EPGList(GUIComponent):
 			if type == 1:
 				list.sort(key=lambda x: (x[4] and x[4].lower(), x[2]))
 			else:
-				assert(type == 0)
+				assert (type == 0)
 				list.sort(key=lambda x: x[2])
 			self.l.invalidate()
 			self.moveToEventId(event_id)
@@ -375,7 +382,7 @@ class EPGList(GUIComponent):
 		index = 0
 		refstr = serviceref.toString()
 		for x in self.list:
-			if CompareWithAlternatives(x[1], refstr):
+			if CompareWithAlternatives(x[1], serviceref):
 				self.instance.moveSelectionTo(index)
 				break
 			index += 1
@@ -404,7 +411,7 @@ class EPGList(GUIComponent):
 
 	def applySkin(self, desktop, parent):
 		def warningWrongSkinParameter(string):
-			print("[EPGList] wrong '%s' skin parameters" % string)
+			print("[EpgList] wrong '%s' skin parameters" % string)
 
 		def setEventItemFont(value):
 			self.eventItemFont = parseFont(value, ((1, 1), (1, 1)))
