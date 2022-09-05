@@ -2,6 +2,7 @@ from Components.Harddisk import harddiskmanager
 from Components.Console import Console
 from Components.config import ConfigSubsection, ConfigYesNo, config, ConfigSelection, ConfigText, ConfigNumber, ConfigSet, ConfigLocations, ConfigSelectionNumber, ConfigClock, ConfigSlider, ConfigEnableDisable, ConfigSubDict, ConfigDictionarySet, ConfigInteger, ConfigPassword, ConfigIP, NoSave, ConfigBoolean
 from Tools.Directories import SCOPE_HDD, SCOPE_TIMESHIFT, defaultRecordingLocation, fileContains, resolveFilename, fileHas
+from Tools.HardwareInfo import HardwareInfo
 from enigma import setTunerTypePriorityOrder, setPreferredTuner, setSpinnerOnOff, setEnableTtCachingOnOff, eEnv, eDVBDB, Misc_Options, eBackgroundFileEraser, eServiceEvent, eDVBLocalTimeHandler, eEPGCache
 from Components.About import GetIPsFromNetworkInterfaces
 from Components.NimManager import nimmanager
@@ -10,9 +11,6 @@ from Components.ServiceList import refreshServiceList
 from Components.SystemInfo import SystemInfo
 from os.path import exists, islink, join as pathjoin, normpath
 import os, time, locale, skin
-from boxbranding import getDisplayType
-
-displaytype = getDisplayType()
 
 
 originalAudioTracks = "orj dos ory org esl qaa und mis mul ORY ORJ Audio_ORJ oth"
@@ -342,6 +340,34 @@ def InitUsageConfig():
 		("4", "DVB-T/-C/-S"),
 		("5", "DVB-T/-S/-C"),
 		("127", _("No priority"))])
+	config.usage.frontled_color = ConfigSelection(default="2", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledrec_color = ConfigSelection(default="3", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledstdby_color = ConfigSelection(default="0", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledrecstdby_color = ConfigSelection(default="3", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
 
 	def remote_fallback_changed(configElement):
 		if configElement.value:
@@ -396,7 +422,7 @@ def InitUsageConfig():
 
 	config.usage.blinking_display_clock_during_recording = ConfigYesNo(default=False)
 
-	if displaytype == "textlcd" or "text" in displaytype:
+	if HardwareInfo().get_device_model() in ('vuultimo', 'et10000', 'mutant2400', 'xpeedlx3', 'quadbox2400', 'sezammarvel', 'atemionemesis', 'mbultra', 'beyonwizt4', 'dm7020hd', 'dm7080'):
 		config.usage.blinking_rec_symbol_during_recording = ConfigSelection(default="Channel", choices=[
 			("Rec", _("REC symbol")),
 			("RecBlink", _("Blinking REC symbol")),
@@ -424,6 +450,49 @@ def InitUsageConfig():
 	config.usage.swap_media_time_display_on_vfd = ConfigSelection(default = "0", choices = [("0", _("Skin Setting")), ("1", _("Mins")), ("2", _("Mins Secs")), ("3", _("Hours Mins")), ("4", _("Hours Mins Secs")), ("5", _("Percentage"))])
 	config.usage.swap_time_remaining_on_vfd = ConfigSelection(default = "0", choices = [("0", _("Remaining")), ("1", _("Elapsed")), ("2", _("Elapsed & Remaining")), ("3", _("Remaining & Elapsed"))])
 	config.usage.elapsed_time_positive_vfd = ConfigYesNo(default = False)
+
+	config.usage.frontled_color = ConfigSelection(default="1", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledrec_color = ConfigSelection(default="4", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledstdby_color = ConfigSelection(default="2", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking Violet")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledrecstdby_color = ConfigSelection(default="4", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+
+	config.usage.lcd_scroll_delay = ConfigSelection(default="10000", choices=[
+		("10000", _("%d seconds") % 10),
+		("20000", _("%d seconds") % 20),
+		("30000", _("%d seconds") % 30),
+		("60000", _("%d minute") % 1),
+		("300000", _("%d minutes") % 5),
+		("noscrolling", _("Off"))
+	])
+	config.usage.lcd_scroll_speed = ConfigSelection(default="300", choices=[
+		("500", _("Slow")),
+		("300", _("Normal")),
+		("100", _("Fast"))
+	])
 
 	def SpinnerOnOffChanged(configElement):
 		setSpinnerOnOff(int(configElement.value))
