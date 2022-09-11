@@ -16,7 +16,7 @@ from Components.ProgressBar import ProgressBar
 from Components.Console import Console
 from Components.Pixmap import MultiPixmap, Pixmap
 from Components.Network import iNetwork
-
+from Tools.Directories import SCOPE_PLUGINS, resolveFilename, isPluginInstalled
 from Tools.StbHardware import getFPVersion
 from Tools.Geolocation import geolocation
 from enigma import eTimer, eLabel, eConsoleAppContainer, getDesktop, eGetEnigmaDebugLvl
@@ -32,13 +32,18 @@ class About(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self.setTitle(_("About"))
+		self["key_green"] = Button(_("Translations"))
+		self["key_red"] = Button(_("Latest Commits"))
+		self["key_yellow"] = Button(_("Dmesg Info"))
+		self["key_blue"] = Button(_("Memory Info"))
+
 		hddsplit = parameters.get("AboutHddSplit", 1)
 
 		AboutText = _("Hardware: ") + about.getHardwareTypeString() + "\n"
 		cpu = about.getCPUInfoString()
 		AboutText += _("CPU: ") + cpu + "\n"
+
 		AboutText += _("Image: ") + about.getImageTypeString() + "\n"
-		AboutText += _("Build date: ") + about.getBuildDateString() + "\n"
 		AboutText += _("Last update: ") + about.getUpdateDateString() + "\n"
 
 		# [WanWizard] Removed until we find a reliable way to determine the installation date
@@ -54,49 +59,76 @@ class About(Screen):
 		self["EnigmaVersion"] = StaticText(EnigmaVersion)
 		AboutText += "\n" + EnigmaVersion + "\n"
 
-		AboutText += _("Kernel version: ") + about.getKernelVersionString() + "\n"
-
+		AboutText += _("Build date: ") + about.getBuildDateString() + "\n"
 		AboutText += _("DVB driver version: ") + about.getDriverInstalledDate() + "\n"
 
-		GStreamerVersion = about.getGStreamerVersionString().replace("GStreamer", "")
+		AboutText += _("Kernel version: ") + about.getKernelVersionString() + "\n"
+
+		GStreamerVersion = _("GStreamer version: ") + about.getGStreamerVersionString().replace("GStreamer", "")
 		self["GStreamerVersion"] = StaticText(GStreamerVersion)
+		AboutText += GStreamerVersion + "\n"
 
 		FFmpegVersion = _("FFmpeg version: ") + about.getFFmpegVersionString()
 		self["FFmpegVersion"] = StaticText(FFmpegVersion)
 		AboutText += FFmpegVersion + "\n"
-
-		player = None
-		if cpu.upper().startswith('HI') or os.path.isdir('/proc/hisi'):
-			if os.path.isdir("/usr/lib/hisilicon") and glob.glob("/usr/lib/hisilicon/libavcodec.so.*"):
-				player = _("Media player") + ": ffmpeg, " + _("Hardware Accelerated")
-			elif ffmpegVersion and ffmpegVersion[0].isdigit():
-				player = _("Media player") + ": ffmpeg, " + _("version") + " " + ffmpegVersion
-
-		if player is None:
-			if GStreamerVersion:
-				player = _("Media player") + ": Gstreamer, " + _("version") + " " + GStreamerVersion
-			else:
-				player = _("Media player") + ": " + _("Not Installed")
-
-		AboutText += player + "\n"
-
 		AboutText += _("Python version: ") + about.getPythonVersionString() + "\n"
 		AboutText += _("GCC version: ") + about.getGccVersion() + "\n"
 		AboutText += _("OpenSSL version: ") + about.getOpenSSLVersion() + "\n"
 		AboutText += _("Enigma (re)starts: %d\n") % config.misc.startCounter.value
-		AboutText += _("Uptime: %s\n") % about.getBoxUptime()
-		AboutText += _("Enigma debug level: %d\n") % eGetEnigmaDebugLvl()
+		AboutText += _("Enigma2 debug level: %d\n") % eGetEnigmaDebugLvl() + "\n"
 
 		fp_version = getFPVersion()
 		if fp_version is None:
 			fp_version = ""
-		elif fp_version != 0:
+		else:
 			fp_version = _("Frontprocessor version: %s") % fp_version
-			AboutText += fp_version + "\n"
+			AboutText += fp_version
+			self["FPVersion"] = StaticText(fp_version)
 
-		self["FPVersion"] = StaticText(fp_version)
+		if SystemInfo["HasHDMI-CEC"] and config.hdmicec.enabled.value:
+			address = config.hdmicec.fixed_physical_address.value if config.hdmicec.fixed_physical_address.value != "0.0.0.0" else _("No fixed address set")
+			AboutText += "\n" + _("HDMI-CEC Enabled") + ": " + address
+		else:
+			hdmicec_disabled = _("Disabled")
+			AboutText += "\n" + _("HDMI-CEC %s") % hdmicec_disabled
 
-		AboutText += _('Skin & Resolution: %s (%sx%s)\n') % (config.skin.primary_skin.value.split('/')[0], getDesktop(0).size().width(), getDesktop(0).size().height())
+		AboutText += "\n" + _('Skin & Resolution: %s (%sx%s)\n') % (config.skin.primary_skin.value.split('/')[0], getDesktop(0).size().width(), getDesktop(0).size().height())
+
+		servicemp3 = _("ServiceMP3. IPTV recording (Yes).")
+		servicehisilicon = _("ServiceHisilicon. IPTV recording (No). (Recommended ServiceMP3).")
+		exteplayer3 = _("ServiceApp-ExtEplayer3. IPTV recording (No). (Recommended ServiceMP3).")
+		gstplayer = _("ServiceApp-GstPlayer. IPTV recording (No). (Recommended ServiceMP3).")
+		if isPluginInstalled("ServiceApp"):
+			if isPluginInstalled("ServiceMP3"):
+				if config.plugins.serviceapp.servicemp3.replace.value and config.plugins.serviceapp.servicemp3.player.value == "exteplayer3":
+					player = "%s" % exteplayer3
+				else:
+					player = "%s" % gstplayer
+				if not config.plugins.serviceapp.servicemp3.replace.value:
+					player = "%s" % servicemp3
+			elif isPluginInstalled("ServiceHisilicon"):
+				if config.plugins.serviceapp.servicemp3.replace.value and config.plugins.serviceapp.servicemp3.player.value == "exteplayer3":
+					player = "%s" % exteplayer3
+				else:
+					player = "%s" % gstplayer
+				if not config.plugins.serviceapp.servicemp3.replace.value:
+					player = "%s" % servicehisilicon
+			else:
+				player = _("Not installed")
+		else:
+			if isPluginInstalled("ServiceMP3"):
+				player = "%s" % servicemp3
+			elif isPluginInstalled("ServiceHisilicon"):
+				player = "%s" % servicehisilicon
+			else:
+				player = _("Not installed")
+		AboutText += _("Player: %s") % player + "\n"
+
+		AboutText += "\n"
+		AboutText += _("Uptime: ") + about.getBoxUptime() + "\n"
+
+
+
 
 		self["TunerHeader"] = StaticText(_("Detected NIMs:"))
 		AboutText += "\n" + _("Detected NIMs:") + "\n"
@@ -135,11 +167,6 @@ class About(Screen):
 			AboutText += "\n\n" + _("HDMI-CEC address") + ": " + address
 
 		self["AboutScrollLabel"] = ScrollLabel(AboutText)
-		self["key_green"] = Button(_("Translations"))
-		self["key_red"] = Button(_("Latest Commits"))
-		self["key_yellow"] = Button(_("Troubleshoot"))
-		self["key_blue"] = Button(_("Memory Info"))
-
 		self["actions"] = ActionMap(["ColorActions", "SetupActions", "DirectionActions"], {
 			"cancel": self.close,
 			"ok": self.close,
@@ -192,7 +219,7 @@ class Geolocation(Screen):
 			if isinstance(state, text_type):
 				state = ensure_str(state.encode(encoding="UTF-8", errors="ignore"))
 			if state != None:
-				GeolocationText += _("RegionName: ") + "\t" + state + "\n"
+				GeolocationText += _("RegionName: ") + "\t" + regionName + "\n"
 
 			city = geolocationData.get("city", None)
 			if isinstance(city, text_type):
@@ -410,12 +437,11 @@ class SystemNetworkInfo(Screen):
 			self.resetList()
 			self.onClose.append(self.cleanup)
 		self["key_red"] = StaticText(_("Close"))
-
 		self["actions"] = ActionMap(["SetupActions", "ColorActions", "DirectionActions"], {
 			"cancel": self.close,
 			"ok": self.close,
 			"up": self["AboutScrollLabel"].pageUp,
-			"down": self["AboutScrollLabel"].pageDown
+			"down": self["AboutScrollLabel"].pageDown,
 		})
 		self.onLayoutFinish.append(self.updateStatusbar)
 
@@ -554,7 +580,7 @@ class SystemNetworkInfo(Screen):
 								essid = _("No connection")
 							else:
 								essid = status[self.iface]["essid"]
-						self.AboutText += _('SSID:') + '\t'  + '\t' + essid + '\n'
+						self.AboutText += _('SSID:') + '\t' + '\t' + essid + '\n'
 
 					if 'quality' in self:
 						if not status[self.iface]["quality"]:
@@ -571,7 +597,7 @@ class SystemNetworkInfo(Screen):
 								bitrate = _("Unsupported")
 							else:
 								bitrate = str(status[self.iface]["bitrate"]) + " Mb/s"
-						self.AboutText += _('Bitrate:') + '\t'  + '\t' + bitrate + '\n'
+						self.AboutText += _('Bitrate:') + '\t' + '\t' + bitrate + '\n'
 
 					if 'signal' in self:
 						if not status[self.iface]["signal"]:
@@ -591,11 +617,11 @@ class SystemNetworkInfo(Screen):
 									encryption = _("Unsupported")
 							else:
 								encryption = _("Enabled")
-						self.AboutText += _('Encryption:') + '\t'  + '\t' + encryption + '\n'
+						self.AboutText += _('Encryption:') + '\t' + '\t' + encryption + '\n'
 
 					if ((status[self.iface]["essid"] and status[self.iface]["essid"] == "off") or
-					    not status[self.iface]["accesspoint"] or
-					    status[self.iface]["accesspoint"] == "Not-Associated"):
+						not status[self.iface]["accesspoint"] or
+						status[self.iface]["accesspoint"] == "Not-Associated"):
 						self.LinkState = False
 						self["statuspic"].setPixmapNum(1)
 						self["statuspic"].show()
@@ -744,7 +770,7 @@ class TranslationInfo(Screen):
 
 		self["actions"] = ActionMap(["SetupActions"], {
 			"cancel": self.close,
-			"ok": self.close
+			"ok": self.close,
 		})
 
 
@@ -909,7 +935,7 @@ class MemoryInfoSkinParams(GUIComponent):
 		self.rows_in_column = applySkinFactor(25)
 
 	def applySkin(self, desktop, screen):
-		if self.skinAttributes is not None:
+		if self.skinAttributes != None:
 			attribs = []
 			for (attrib, value) in self.skinAttributes:
 				if attrib == "rowsincolumn":
@@ -937,7 +963,7 @@ class Troubleshoot(Screen):
 			"left": self.left,
 			"right": self.right,
 			"red": self.red,
-			"green": self.green
+			"green": self.green,
 		})
 
 		self.container = eConsoleAppContainer()
@@ -1012,9 +1038,11 @@ class Troubleshoot(Screen):
 		self.close()
 
 	def getDebugFilesList(self):
+		import glob
 		return [x for x in sorted(glob.glob("/home/root/enigma.*.debuglog"), key=lambda x: os.path.isfile(x) and os.path.getmtime(x))]
 
 	def getLogFilesList(self):
+		import glob
 		home_root = "/home/root/enigma2_crash.log"
 		tmp = "/tmp/enigma2_crash.log"
 		return [x for x in sorted(glob.glob("/mnt/hdd/*.log"), key=lambda x: os.path.isfile(x) and os.path.getmtime(x))] + (os.path.isfile(home_root) and [home_root] or []) + (os.path.isfile(tmp) and [tmp] or [])
