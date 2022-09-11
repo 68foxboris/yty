@@ -83,7 +83,8 @@ def InitUsageConfig():
 		("standard", _("Standard")),
 		("keep", _("Keep service")),
 		("reverseB", _("Reverse bouquet buttons")),
-		("keep reverseB", _("Keep service") + " + " + _("Reverse bouquet buttons"))])
+		("keep reverseB", "%s + %s" % (_("Keep service"), _("Reverse bouquet buttons")))
+	])
 
 	choicelist = [("by skin", _("As defined by the skin"))]
 	for i in range(5, 41):
@@ -108,7 +109,10 @@ def InitUsageConfig():
 	config.usage.show_infobar_on_event_change = ConfigYesNo(default=False)
 	config.usage.show_second_infobar = ConfigSelection(default="0", choices=[("", _("None"))] + choicelist + [("EPG", _("EPG"))])
 	config.usage.show_simple_second_infobar = ConfigYesNo(default=False)
-	config.usage.infobar_frontend_source = ConfigSelection(default="settings", choices=[("settings", _("Settings")), ("tuner", _("Tuner"))])
+	config.usage.infobar_frontend_source = ConfigSelection(default="settings", choices=[
+		("settings", _("Settings")),
+		("tuner", _("Tuner"))
+	])
 	config.usage.oldstyle_zap_controls = ConfigYesNo(default=False)
 	config.usage.oldstyle_channel_select_controls = ConfigYesNo(default=False)
 	config.usage.zap_with_ch_buttons = ConfigYesNo(default=False)
@@ -118,40 +122,110 @@ def InitUsageConfig():
 	config.usage.channelselection_preview = ConfigYesNo(default=False)
 	config.usage.show_spinner = ConfigYesNo(default=True)
 	config.usage.menu_sort_weight = ConfigDictionarySet(default={"mainmenu": {"submenu": {}}})
-	config.usage.menu_sort_mode = ConfigSelection(default="default", choices=[("a_z", _("alphabetical")), ("default", _("Default")), ("user", _("user defined")), ("user_hidden", _("user defined hidden"))])
+	config.usage.menu_sort_mode = ConfigSelection(default="default", choices=[
+		("a_z", _("Alphabetical")),
+		("default", _("Default")),
+		("user", _("User defined")),
+		("user_hidden", _("User defined hidden"))
+	])
 	config.usage.show_genre_info = ConfigYesNo(default=False)
-	config.usage.menu_show_numbers = ConfigSelection(default="no", choices=[("no", _("no")), ("menu&plugins", _("in menu and plugins")), ("menu", _("in menu only")), ("plugins", _("in plugins only"))])
-	config.usage.showScreenPath = ConfigSelection(default="small", choices=[("off", _("Disabled")), ("small", _("Small")), ("large", _("Large"))])
+	config.usage.menu_show_numbers = ConfigSelection(default="no", choices=[
+		("no", _("No")),
+		("menu&plugins", _("In menu and plugins")),
+		("menu", _("In menu only")),
+		("plugins", _("In plugins only"))
+	])
+	config.usage.showScreenPath = ConfigSelection(default="small", choices=[
+		("off", _("Disabled")),
+		("small", _("Small")),
+		("large", _("Large"))
+	])
 	config.usage.enable_tt_caching = ConfigYesNo(default=True)
 
-	config.usage.tuxtxt_font_and_res = ConfigSelection(default="TTF_SD", choices=[("X11_SD", _("Fixed X11 font (SD)")), ("TTF_SD", _("TrueType font (SD)")), ("TTF_HD", _("TrueType font (HD)")), ("TTF_FHD", _("TrueType font (full-HD)")), ("expert_mode", _("Expert mode"))])
-	config.usage.tuxtxt_UseTTF = ConfigSelection(default="1", choices=[("0", "0"), ("1", "1")])
-	config.usage.tuxtxt_TTFBold = ConfigSelection(default="1", choices=[("0", "0"), ("1", "1")])
-	config.usage.tuxtxt_TTFScreenResX = ConfigSelection(default="720", choices=[("720", "720"), ("1280", "1280"), ("1920", "1920")])
+	config.usage.tuxtxt_font_and_res = ConfigSelection(default="TTF_SD", choices=[
+		("X11_SD", _("Fixed X11 font (SD)")),
+		("TTF_SD", _("TrueType font (SD)")),
+		("TTF_HD", _("TrueType font (HD)")),
+		("TTF_FHD", _("TrueType font (Full-HD)")),
+		("expert_mode", _("Expert mode"))
+	])
+	config.usage.tuxtxt_UseTTF = ConfigSelection(default="1", choices=[
+		("0", _("0")),
+		("1", _("1"))
+	])
+	config.usage.tuxtxt_TTFBold = ConfigSelection(default="1", choices=[
+		("0", _("0")),
+		("1", _("1"))
+	])
+	config.usage.tuxtxt_TTFScreenResX = ConfigSelection(default="720", choices=[
+		("720", _("720")),
+		("1280", _("1280")),
+		("1920", _("1920"))
+	])
 	config.usage.tuxtxt_StartX = ConfigInteger(default=50, limits=(0, 200))
 	config.usage.tuxtxt_EndX = ConfigInteger(default=670, limits=(500, 1920))
 	config.usage.tuxtxt_StartY = ConfigInteger(default=30, limits=(0, 200))
 	config.usage.tuxtxt_EndY = ConfigInteger(default=555, limits=(400, 1080))
-	config.usage.tuxtxt_TTFShiftY = ConfigSelection(default="2", choices=[("-9", "-9"), ("-8", "-8"), ("-7", "-7"), ("-6", "-6"), ("-5", "-5"), ("-4", "-4"), ("-3", "-3"), ("-2", "-2"), ("-1", "-1"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"), ("6", "6"), ("7", "7"), ("8", "8"), ("9", "9")])
-	config.usage.tuxtxt_TTFShiftX = ConfigSelection(default="0", choices=[("-9", "-9"), ("-8", "-8"), ("-7", "-7"), ("-6", "-6"), ("-5", "-5"), ("-4", "-4"), ("-3", "-3"), ("-2", "-2"), ("-1", "-1"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"), ("6", "6"), ("7", "7"), ("8", "8"), ("9", "9")])
+	config.usage.tuxtxt_TTFShiftY = ConfigSelection(default="2", choices=[
+		("-9", _("-9")),
+		("-8", _("-8")),
+		("-7", _("-7")),
+		("-6", _("-6")),
+		("-5", _("-5")),
+		("-4", _("-4")),
+		("-3", _("-3")),
+		("-2", _("-2")),
+		("-1", _("-1")),
+		("0", _("0")),
+		("1", _("1")),
+		("2", _("2")),
+		("3", _("3")),
+		("4", _("4")),
+		("5", _("5")),
+		("6", _("6")),
+		("7", _("7")),
+		("8", _("8")),
+		("9", _("9"))
+	])
+	config.usage.tuxtxt_TTFShiftX = ConfigSelection(default="0", choices=[
+		("-9", _("-9")),
+		("-8", _("-8")),
+		("-7", _("-7")),
+		("-6", _("-6")),
+		("-5", _("-5")),
+		("-4", _("-4")),
+		("-3", _("-3")),
+		("-2", _("-2")),
+		("-1", _("-1")),
+		("0", _("0")),
+		("1", _("1")),
+		("2", _("2")),
+		("3", _("3")),
+		("4", _("4")),
+		("5", _("5")),
+		("6", _("6")),
+		("7", _("7")),
+		("8", _("8")),
+		("9", _("9"))
+	])
 	config.usage.tuxtxt_TTFWidthFactor16 = ConfigInteger(default=29, limits=(8, 31))
 	config.usage.tuxtxt_TTFHeightFactor16 = ConfigInteger(default=14, limits=(8, 31))
 	config.usage.tuxtxt_CleanAlgo = ConfigInteger(default=0, limits=(0, 9))
 	config.usage.tuxtxt_ConfFileHasBeenPatched = NoSave(ConfigYesNo(default=False))
 
-	config.usage.tuxtxt_font_and_res.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_UseTTF.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_TTFBold.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_TTFScreenResX.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_StartX.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_EndX.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_StartY.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_EndY.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_TTFShiftY.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_TTFShiftX.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_TTFWidthFactor16.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_TTFHeightFactor16.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
-	config.usage.tuxtxt_CleanAlgo.addNotifier(patchTuxtxtConfFile, initial_call = False, immediate_feedback = False)
+	config.usage.tuxtxt_font_and_res.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_UseTTF.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_TTFBold.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_TTFScreenResX.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_StartX.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_EndX.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_StartY.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_EndY.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_TTFShiftY.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_TTFShiftX.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_TTFWidthFactor16.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_TTFHeightFactor16.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
+	config.usage.tuxtxt_CleanAlgo.addNotifier(patchTuxtxtConfFile, initial_call=False, immediate_feedback=False)
 
 	config.usage.sort_settings = ConfigYesNo(default=False)
 	choicelist = []
@@ -165,14 +239,26 @@ def InitUsageConfig():
 		choicelist.append((str(i), ngettext("%d hour", "%d hours", h) % h))
 	config.usage.hdd_standby = ConfigSelection(default="300", choices=[("0", _("No standby"))] + choicelist)
 	config.usage.output_12V = ConfigSelection(default="do not change", choices=[
-		("do not change", _("Do not change")), ("off", _("Off")), ("on", _("On"))])
+		("do not change", _("Do not change")),
+		("off", _("Off")),
+		("on", _("On"))
+	])
 
 	config.usage.pip_zero_button = ConfigSelection(default="standard", choices=[
-		("standard", _("Standard")), ("swap", _("Swap PiP and main picture")),
-		("swapstop", _("Move PiP to main picture")), ("stop", _("Stop PiP"))])
+		("standard", _("Standard")),
+		("swap", _("Swap PiP and main picture")),
+		("swapstop", _("Move PiP to main picture")),
+		("stop", _("Stop PiP"))
+	])
 	config.usage.pip_hideOnExit = ConfigSelection(default="without popup", choices=[
-		("no", _("no")), ("popup", _("With popup")), ("without popup", _("Without popup"))])
-	choicelist = [("-1", _("Disabled")), ("0", _("No timeout"))]
+		("no", _("No")),
+		("popup", _("With popup")),
+		("without popup", _("Without popup"))
+	])
+	choicelist = [
+		("-1", _("Disabled")),
+		("0", _("No timeout"))
+	]
 	for i in [60, 300, 600, 900, 1800, 2700, 3600]:
 		m = i / 60
 		choicelist.append((str(i), ngettext("%d minute", "%d minutes", m) % m))
@@ -246,18 +332,21 @@ def InitUsageConfig():
 	config.usage.setup_level = ConfigSelection(default="expert", choices=[
 		("simple", _("Normal")),
 		("intermediate", _("Advanced")),
-		("expert", _("Expert"))])
+		("expert", _("Expert"))
+	])
 
 	config.usage.startup_to_standby = ConfigSelection(default="no", choices=[
-		("no", _("no")),
-		("yes", _("yes")),
-		("except", _("No, except Wakeup timer"))])
+		("no", _("No")),
+		("yes", _("Yes")),
+		("except", _("No, except Wakeup timer"))
+	])
 
 	config.usage.wakeup_enabled = ConfigSelection(default="no", choices=[
-		("no", _("no")),
-		("yes", _("yes")),
+		("no", _("No")),
+		("yes", _("Yes")),
 		("standby", _("Yes, only from standby")),
-		("deepstandby", _("Yes, only from deep standby"))])
+		("deepstandby", _("Yes, only from deep standby"))
+	])
 	config.usage.wakeup_day = ConfigSubDict()
 	config.usage.wakeup_time = ConfigSubDict()
 	for i in range(7):
@@ -333,13 +422,14 @@ def InitUsageConfig():
 	config.usage.timeshift_start_delay = ConfigSelection(default="0", choices=choicelist)
 
 	config.usage.alternatives_priority = ConfigSelection(default="0", choices=[
-		("0", "DVB-S/-C/-T"),
-		("1", "DVB-S/-T/-C"),
-		("2", "DVB-C/-S/-T"),
-		("3", "DVB-C/-T/-S"),
-		("4", "DVB-T/-C/-S"),
-		("5", "DVB-T/-S/-C"),
-		("127", _("No priority"))])
+		("0", _("DVB-S/-C/-T")),
+		("1", _("DVB-S/-T/-C")),
+		("2", _("DVB-C/-S/-T")),
+		("3", _("DVB-C/-T/-S")),
+		("4", _("DVB-T/-C/-S")),
+		("5", _("DVB-T/-S/-C")),
+		("127", _("No priority"))
+	])
 
 	def remote_fallback_changed(configElement):
 		if configElement.value:
@@ -357,7 +447,12 @@ def InitUsageConfig():
 	config.usage.remote_fallback_dvb_c.addNotifier(remote_fallback_changed, immediate_feedback=False)
 	config.usage.remote_fallback_atsc = ConfigText(default="", fixed_size=False)
 	config.usage.remote_fallback_atsc.addNotifier(remote_fallback_changed, immediate_feedback=False)
-	config.usage.remote_fallback_import = ConfigSelection(default="", choices=[("", _("No")), ("channels", _("Channels only")), ("channels_epg", _("Channels and EPG")), ("epg", _("EPG only"))])
+	config.usage.remote_fallback_import = ConfigSelection(default="", choices=[
+		("", _("No")),
+		("channels", _("Channels only")),
+		("channels_epg", _("Channels and EPG")),
+		("epg", _("EPG only"))
+	])
 	config.usage.remote_fallback_import_restart = ConfigYesNo(default=False)
 	config.usage.remote_fallback_import_standby = ConfigYesNo(default=False)
 	config.usage.remote_fallback_ok = ConfigYesNo(default=False)
@@ -383,11 +478,12 @@ def InitUsageConfig():
 	config.misc.disable_background_scan = ConfigYesNo(default=False)
 	config.misc.use_ci_assignment = ConfigYesNo(default=False)
 	config.usage.show_event_progress_in_servicelist = ConfigSelection(default='barright', choices=[
-		('barleft', _("Progress bar left")),
-		('barright', _("Progress bar right")),
-		('percleft', _("Percentage left")),
-		('percright', _("Percentage right")),
-		('no', _("no"))])
+		("barleft", _("Progress bar left")),
+		("barright", _("Progress bar right")),
+		("percleft", _("Percentage left")),
+		("percright", _("Percentage right")),
+		("no", _("No"))
+	])
 	config.usage.show_channel_numbers_in_servicelist = ConfigYesNo(default=True)
 	config.usage.show_event_progress_in_servicelist.addNotifier(refreshServiceList)
 	config.usage.show_channel_numbers_in_servicelist.addNotifier(refreshServiceList)
@@ -398,10 +494,10 @@ def InitUsageConfig():
 
 	config.usage.load_length_of_movies_in_moviellist = ConfigYesNo(default=True)
 	config.usage.show_icons_in_movielist = ConfigSelection(default='i', choices=[
-		('o', _("Off")),
-		('p', _("Progress")),
-		('s', _("Small progress")),
-		('i', _("Icons")),
+		("o", _("Off")),
+		("p", _("Progress")),
+		("s", _("Small progress")),
+		("i", _("Icons"))
 	])
 	config.usage.movielist_unseen = ConfigYesNo(default=False)
 
@@ -435,11 +531,21 @@ def InitUsageConfig():
 	config.usage.show_eit_nownext = ConfigYesNo(default=True)
 	config.usage.show_vcr_scart = ConfigYesNo(default=False)
 	config.usage.show_update_disclaimer = ConfigYesNo(default=True)
-	config.usage.pic_resolution = ConfigSelection(default=None, choices=[(None, _("Same resolution as skin")), ("(720, 576)", "720x576"), ("(1280, 720)", "1280x720"), ("(1920, 1080)", "1920x1080")][:SystemInfo["HasFullHDSkinSupport"] and 4 or 3])
+	config.usage.pic_resolution = ConfigSelection(default=None, choices=[
+		(None, _("Same resolution as skin")),
+		("(720, 576)", _("720x576")),
+		("(1280, 720)", _("1280x720")),
+		("(1920, 1080)", _("1920x1080"))
+	][:SystemInfo["HasFullHDSkinSupport"] and 4 or 3])
 
 	if SystemInfo["Fan"]:
-		choicelist = [('off', _("Off")), ('on', _("On")), ('auto', _("Auto"))]
-		if os.path.exists("/proc/stb/fp/fan_choices"):
+		choicelist = [
+			("off", _("Off")),
+			("on", _("On")),
+			("auto", _("Auto"))
+		]
+		if exists("/proc/stb/fp/fan_choices"):
+			print("[UsageConfig] Read /proc/stb/fp/fan_choices")
 			choicelist = [x for x in choicelist if x[0] in open("/proc/stb/fp/fan_choices", "r").read().strip().split(" ")]
 		config.usage.fan = ConfigSelection(choicelist)
 
@@ -718,7 +824,10 @@ def InitUsageConfig():
 		("step", _("Single step (GOP)")),
 		("last", _("Last speed"))])
 
-	config.usage.timerlist_finished_timer_position = ConfigSelection(default="end", choices=[("beginning", _("At beginning")), ("end", _("At end"))])
+	config.usage.timerlist_finished_timer_position = ConfigSelection(default="end", choices=[
+		("beginning", _("At beginning")),
+		("end", _("At end"))
+	])
 
 	def updateEnterForward(configElement):
 		if not configElement.value:
@@ -758,7 +867,11 @@ def InitUsageConfig():
 		def setZapmode(el):
 			open(SystemInfo["ZapMode"], "w").write(el.value)
 		config.misc.zapmode = ConfigSelection(default="mute", choices=[
-			("mute", _("Black screen")), ("hold", _("Hold screen")), ("mutetilllock", _("Black screen till locked")), ("holdtilllock", _("Hold till locked"))])
+			("mute", _("Black screen")),
+			("hold", _("Hold screen")),
+			("mutetilllock", _("Black screen till locked")),
+			("holdtilllock", _("Hold till locked"))
+		])
 		config.misc.zapmode.addNotifier(setZapmode, immediate_feedback=False)
 
 	config.usage.historymode = ConfigSelection(default='1', choices=[('0', _('Just zap')), ('1', _('Show menu'))])
@@ -802,12 +915,36 @@ def InitUsageConfig():
 	config.subtitles = ConfigSubsection()
 	config.subtitles.show = ConfigYesNo(default=True)
 	config.subtitles.ttx_subtitle_colors = ConfigSelection(default="1", choices=[
-		("0", _("original")),
-		("1", _("white")),
-		("2", _("yellow"))])
+		("0", _("Original")),
+		("1", _("White")),
+		("2", _("Yellow"))
+	])
 	config.subtitles.ttx_subtitle_original_position = ConfigYesNo(default=False)
-	config.subtitles.subtitle_position = ConfigSelection(default="50", choices=["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100", "150", "200", "250", "300", "350", "400", "450"])
-	config.subtitles.subtitle_alignment = ConfigSelection(default="center", choices=[("left", _("left")), ("center", _("center")), ("right", _("right"))])
+	config.subtitles.ttx_subtitle_position = ConfigSelection(default="50", choices=[
+		"0",
+		"10",
+		"20",
+		"30",
+		"40",
+		"50",
+		"60",
+		"70",
+		"80",
+		"90",
+		"100",
+		"150",
+		"200",
+		"250",
+		"300",
+		"350",
+		"400",
+		"450"
+	])
+	config.subtitles.subtitle_alignment = ConfigSelection(default="center", choices=[
+		("left", _("Left")),
+		("center", _("Center")),
+		("right", _("Right"))
+	])
 	config.subtitles.subtitle_rewrap = ConfigYesNo(default=False)
 	config.subtitles.colourise_dialogs = ConfigYesNo(default=False)
 	config.subtitles.subtitle_borderwidth = ConfigSelection(default="3", choices=["1", "2", "3", "4", "5"])
@@ -828,20 +965,22 @@ def InitUsageConfig():
 	config.subtitles.subtitle_bad_timing_delay = ConfigSelection(default="0", choices=subtitle_delay_choicelist)
 	config.subtitles.dvb_subtitles_backtrans = ConfigSelection(default="0", choices=[
 		("0", _("No transparency")),
-		("25", "10%"),
-		("50", "20%"),
-		("75", "30%"),
-		("100", "40%"),
-		("125", "50%"),
-		("150", "60%"),
-		("175", "70%"),
-		("200", "80%"),
-		("225", "90%"),
-		("255", _("Full transparency"))])
+		("25", _("10%")),
+		("50", _("20%")),
+		("75", _("30%")),
+		("100", _("40%")),
+		("125", _("50%")),
+		("150", _("60%")),
+		("175", _("70%")),
+		("200", _("80%")),
+		("225", _("90%")),
+		("255", _("Full transparency"))
+	])
 	config.subtitles.pango_subtitle_colors = ConfigSelection(default="1", choices=[
-		("0", _("alternative")),
-		("1", _("white")),
-		("2", _("yellow"))])
+		("0", _("Alternative")),
+		("1", _("White")),
+		("2", _("Yellow"))
+	])
 	config.subtitles.pango_subtitle_fontswitch = ConfigYesNo(default=True)
 	config.subtitles.pango_subtitles_delay = ConfigSelection(default="0", choices=subtitle_delay_choicelist)
 	config.subtitles.pango_subtitles_fps = ConfigSelection(default="1", choices=[
@@ -850,7 +989,8 @@ def InitUsageConfig():
 		("24000", _("24")),
 		("25000", _("25")),
 		("29970", _("29.97")),
-		("30000", _("30"))])
+		("30000", _("30"))
+	])
 	config.subtitles.pango_subtitle_removehi = ConfigYesNo(default=False)
 	config.subtitles.pango_autoturnon = ConfigYesNo(default=True)
 
@@ -894,7 +1034,8 @@ def InitUsageConfig():
 		("tha", _("Thai")),
 		("tur Audio_TUR", _("Turkish")),
 		("ukr Ukr", _("Ukrainian")),
-		(visuallyImpairedCommentary, _("Audio description for the visually impaired"))]
+		(visuallyImpairedCommentary, _("Audio description for the visually impaired"))
+	]
 
 	epg_language_choices = audio_language_choices[:1] + audio_language_choices[2:]
 
@@ -1013,7 +1154,11 @@ def InitUsageConfig():
 			eEPGCache.getInstance().timeUpdated()
 			if not os.path.islink('/etc/network/if-up.d/ntpdate-sync'):
 				Console().ePopen("echo '30 * * * *    /usr/bin/ntpdate-sync silent' >>/etc/cron/crontabs/root;ln -s /usr/bin/ntpdate-sync /etc/network/if-up.d/ntpdate-sync")
-	config.ntp.timesync = ConfigSelection(default="auto", choices=[("auto", _("auto")), ("dvb", _("Transponder Time")), ("ntp", _("Internet (ntp)"))])
+	config.ntp.timesync = ConfigSelection(default="dvb", choices=[
+		("auto", _("Auto")),
+		("dvb", _("Transponder time")),
+		("ntp", _("Internet time (NTP)"))
+	])
 	config.ntp.timesync.addNotifier(timesyncChanged)
 	config.ntp.server = ConfigText("pool.ntp.org", fixed_size=False)
 
@@ -1053,88 +1198,6 @@ def preferredInstantRecordPath():
 
 def defaultMoviePath():
 	return defaultRecordingLocation(config.usage.default_path.value)
-
-
-def patchTuxtxtConfFile(dummyConfigElement):
-	print("[tuxtxt] patching tuxtxt2.conf")
-	if config.usage.tuxtxt_font_and_res.value == "X11_SD":
-		tuxtxt2 = [["UseTTF",0],
-		           ["TTFBold",1],
-		           ["TTFScreenResX",720],
-		           ["StartX",50],
-		           ["EndX",670],
-		           ["StartY",30],
-		           ["EndY",555],
-		           ["TTFShiftY",0],
-		           ["TTFShiftX",0],
-		           ["TTFWidthFactor16",26],
-		           ["TTFHeightFactor16",14]]
-	elif config.usage.tuxtxt_font_and_res.value == "TTF_SD":
-		tuxtxt2 = [["UseTTF",1],
-		           ["TTFBold",1],
-		           ["TTFScreenResX",720],
-		           ["StartX",50],
-		           ["EndX",670],
-		           ["StartY",30],
-		           ["EndY",555],
-		           ["TTFShiftY",2],
-		           ["TTFShiftX",0],
-		           ["TTFWidthFactor16",29],
-		           ["TTFHeightFactor16",14]]
-	elif config.usage.tuxtxt_font_and_res.value == "TTF_HD":
-		tuxtxt2 = [["UseTTF",1],
-		           ["TTFBold",0],
-		           ["TTFScreenResX",1280],
-		           ["StartX",80],
-		           ["EndX",1200],
-		           ["StartY",35],
-		           ["EndY",685],
-		           ["TTFShiftY",-3],
-		           ["TTFShiftX",0],
-		           ["TTFWidthFactor16",26],
-		           ["TTFHeightFactor16",14]]
-	elif config.usage.tuxtxt_font_and_res.value == "TTF_FHD":
-		tuxtxt2 = [["UseTTF",1],
-		           ["TTFBold",0],
-		           ["TTFScreenResX",1920],
-		           ["StartX",140],
-		           ["EndX",1780],
-		           ["StartY",52],
-		           ["EndY",1027],
-		           ["TTFShiftY",-6],
-		           ["TTFShiftX",0],
-		           ["TTFWidthFactor16",26],
-		           ["TTFHeightFactor16",14]]
-	elif config.usage.tuxtxt_font_and_res.value == "expert_mode":
-		tuxtxt2 = [["UseTTF",            int(config.usage.tuxtxt_UseTTF.value)],
-		           ["TTFBold",           int(config.usage.tuxtxt_TTFBold.value)],
-		           ["TTFScreenResX",     int(config.usage.tuxtxt_TTFScreenResX.value)],
-		           ["StartX",            config.usage.tuxtxt_StartX.value],
-		           ["EndX",              config.usage.tuxtxt_EndX.value],
-		           ["StartY",            config.usage.tuxtxt_StartY.value],
-		           ["EndY",              config.usage.tuxtxt_EndY.value],
-		           ["TTFShiftY",         int(config.usage.tuxtxt_TTFShiftY.value)],
-		           ["TTFShiftX",         int(config.usage.tuxtxt_TTFShiftX.value)],
-		           ["TTFWidthFactor16",  config.usage.tuxtxt_TTFWidthFactor16.value],
-		           ["TTFHeightFactor16", config.usage.tuxtxt_TTFHeightFactor16.value]]
-	tuxtxt2.append(    ["CleanAlgo",         config.usage.tuxtxt_CleanAlgo.value] )
-
-	TUXTXT_CFG_FILE = "/etc/tuxtxt/tuxtxt2.conf"
-	command = "sed -i -r '"
-	for f in tuxtxt2:
-		#replace keyword (%s) followed by any value ([-0-9]+) by that keyword \1 and the new value %d
-		command += "s|(%s)\s+([-0-9]+)|\\1 %d|;" % (f[0],f[1])
-	command += "' %s" % TUXTXT_CFG_FILE
-	for f in tuxtxt2:
-		#if keyword is not found in file, append keyword and value
-		command += " ; if ! grep -q '%s' %s ; then echo '%s %d' >> %s ; fi"  % (f[0],TUXTXT_CFG_FILE,f[0],f[1],TUXTXT_CFG_FILE)
-	try:
-		os.system(command)
-	except:
-		print("Error: failed to patch %s!" % TUXTXT_CFG_FILE)
-	print("[tuxtxt] patched tuxtxt2.conf")
-
-	config.usage.tuxtxt_ConfFileHasBeenPatched.setValue(True)
 
 
 def showrotorpositionChoicesUpdate(update=False):
@@ -1223,6 +1286,95 @@ def preferredTunerChoicesUpdate(update=False):
 	SystemInfo["DVB-T_priority_tuner_available"] = len(dvbt_nims) > 3 and any(len(i) > 2 for i in (dvbs_nims, dvbc_nims, atsc_nims))
 	SystemInfo["DVB-C_priority_tuner_available"] = len(dvbc_nims) > 3 and any(len(i) > 2 for i in (dvbs_nims, dvbt_nims, atsc_nims))
 	SystemInfo["ATSC_priority_tuner_available"] = len(atsc_nims) > 3 and any(len(i) > 2 for i in (dvbs_nims, dvbc_nims, dvbt_nims))
+
+def patchTuxtxtConfFile(dummyConfigElement):
+	print("[UsageConfig] patching tuxtxt2.conf")
+	if config.usage.tuxtxt_font_and_res.value == "X11_SD":
+		tuxtxt2 = [
+			["UseTTF", 0],
+			["TTFBold", 1],
+			["TTFScreenResX", 720],
+			["StartX", 50],
+			["EndX", 670],
+			["StartY", 30],
+			["EndY", 555],
+			["TTFShiftY", 0],
+			["TTFShiftX", 0],
+			["TTFWidthFactor16", 26],
+			["TTFHeightFactor16", 14]
+		]
+	elif config.usage.tuxtxt_font_and_res.value == "TTF_SD":
+		tuxtxt2 = [
+			["UseTTF", 1],
+			["TTFBold", 1],
+			["TTFScreenResX", 720],
+			["StartX", 50],
+			["EndX", 670],
+			["StartY", 30],
+			["EndY", 555],
+			["TTFShiftY", 2],
+			["TTFShiftX", 0],
+			["TTFWidthFactor16", 29],
+			["TTFHeightFactor16", 14]
+		]
+	elif config.usage.tuxtxt_font_and_res.value == "TTF_HD":
+		tuxtxt2 = [
+			["UseTTF", 1],
+			["TTFBold", 0],
+			["TTFScreenResX", 1280],
+			["StartX", 80],
+			["EndX", 1200],
+			["StartY", 35],
+			["EndY", 685],
+			["TTFShiftY", -3],
+			["TTFShiftX", 0],
+			["TTFWidthFactor16", 26],
+			["TTFHeightFactor16", 14]
+		]
+	elif config.usage.tuxtxt_font_and_res.value == "TTF_FHD":
+		tuxtxt2 = [
+			["UseTTF", 1],
+			["TTFBold", 0],
+			["TTFScreenResX", 1920],
+			["StartX", 140],
+			["EndX", 1780],
+			["StartY", 52],
+			["EndY", 1027],
+			["TTFShiftY", -6],
+			["TTFShiftX", 0],
+			["TTFWidthFactor16", 26],
+			["TTFHeightFactor16", 14]
+		]
+	elif config.usage.tuxtxt_font_and_res.value == "expert_mode":
+		tuxtxt2 = [
+			["UseTTF", int(config.usage.tuxtxt_UseTTF.value)],
+			["TTFBold", int(config.usage.tuxtxt_TTFBold.value)],
+			["TTFScreenResX", int(config.usage.tuxtxt_TTFScreenResX.value)],
+			["StartX", config.usage.tuxtxt_StartX.value],
+			["EndX", config.usage.tuxtxt_EndX.value],
+			["StartY", config.usage.tuxtxt_StartY.value],
+			["EndY", config.usage.tuxtxt_EndY.value],
+			["TTFShiftY", int(config.usage.tuxtxt_TTFShiftY.value)],
+			["TTFShiftX", int(config.usage.tuxtxt_TTFShiftX.value)],
+			["TTFWidthFactor16", config.usage.tuxtxt_TTFWidthFactor16.value],
+			["TTFHeightFactor16", config.usage.tuxtxt_TTFHeightFactor16.value]
+		]
+	tuxtxt2.append(["CleanAlgo", config.usage.tuxtxt_CleanAlgo.value])
+	TUXTXT_CFG_FILE = "/etc/tuxtxt/tuxtxt2.conf"
+	command = "sed -i -r '"
+	for f in tuxtxt2:
+		# replace keyword (%s) followed by any value ([-0-9]+) by that keyword \1 and the new value %d
+		command += "s|(%s)\s+([-0-9]+)|\\1 %d|;" % (f[0], f[1])
+	command += "' %s" % TUXTXT_CFG_FILE
+	for f in tuxtxt2:
+		# if keyword is not found in file, append keyword and value
+		command += " ; if ! grep -q '%s' %s ; then echo '%s %d' >> %s ; fi" % (f[0], TUXTXT_CFG_FILE, f[0], f[1], TUXTXT_CFG_FILE)
+	try:
+		Console().ePopen(command)
+	except:
+		print("[UsageConfig] Error: failed to patch %s!" % TUXTXT_CFG_FILE)
+	print("[UsageConfig] patched tuxtxt2.conf")
+	config.usage.tuxtxt_ConfFileHasBeenPatched.setValue(True)
 
 def dropEPGNewLines(text):
 	if config.epg.replace_newlines.value != "no":
