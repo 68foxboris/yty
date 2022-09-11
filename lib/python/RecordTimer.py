@@ -14,7 +14,7 @@ import Components.ParentalControl
 from Tools.Alternatives import ResolveCiAlternative
 from Tools.ASCIItranslit import legacyEncode
 from Tools.CIHelper import cihelper
-from Tools.Directories import SCOPE_CONFIG, getRecordingFilename, resolveFilename
+from Tools.Directories import SCOPE_CONFIG, getRecordingFilename, resolveFilename, isPluginInstalled
 from Tools.Notifications import AddNotification, AddNotificationWithCallback, AddPopup
 from Tools.XMLTools import stringToXML
 from Tools.Trashcan import instance as trashcan_instance
@@ -877,9 +877,15 @@ class RecordTimer(timer.Timer):
 			print("unable to load timers from file!")
 
 	def doActivate(self, w):
+		# when activating a timer for servicetype 4097,
+		# and ServiceApp has player enabled, then skip recording.
+		if w.service_ref.ref.toString().startswith("4097:") and isPluginInstalled("ServiceApp") and config.plugins.serviceapp.servicemp3.replace.value or w.service_ref.ref.toString()[:4] in ("5001", "5002"):
+			print("[RecordTimer][doActivate] ServiceApp enabled - recording disabled")
+			w.state = RecordTimerEntry.StateEnded
+			AddPopup(_("IPTV recording with ServiceApp enabled - recording canceled"), type=MessageBox.TYPE_ERROR, timeout=0, id="TimerRecordingFailed")
 		# when activating a timer which has already passed,
 		# simply abort the timer. don't run trough all the stages.
-		if w.shouldSkip():
+		elif w.shouldSkip():
 			w.state = RecordTimerEntry.StateEnded
 		else:
 			# when active returns true, this means "accepted".
