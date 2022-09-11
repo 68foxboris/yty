@@ -8,7 +8,7 @@ from Components.Label import Label
 from Components.config import config, ConfigSubsection, ConfigSelection, ConfigSubList, getConfigListEntry, KEY_LEFT, KEY_RIGHT, KEY_0, ConfigNothing, ConfigPIN, ConfigYesNo, NoSave
 from Components.ConfigList import ConfigList, ConfigListScreen
 from Components.SystemInfo import SystemInfo
-from enigma import eTimer, eDVBCI_UI, eDVBCIInterfaces
+from enigma import eTimer, eDVBCI_UI
 import Screens.Standby
 
 forceNotShowCiMessages = False
@@ -58,7 +58,7 @@ class MMIDialog(Screen):
 	def __init__(self, session, slotid, action, handler=eDVBCI_UI.getInstance(), wait_text="", screen_data=None):
 		Screen.__init__(self, session)
 
-		print("MMIDialog with action" + str(action))
+		print("[Ci] MMIDialog with action" + str(action))
 
 		self.mmiclosed = False
 		self.tag = None
@@ -133,9 +133,9 @@ class MMIDialog(Screen):
 		if not self.tag:
 			return
 		if self.tag == "WAIT":
-			print("do nothing - wait")
+			print("[Ci] do nothing - wait")
 		elif self.tag == "MENU":
-			print("answer MENU")
+			print("[Ci] answer MENU")
 			cur = self["entries"].getCurrent()
 			if cur:
 				self.handler.answerMenu(self.slotid, cur[2])
@@ -143,7 +143,7 @@ class MMIDialog(Screen):
 				self.handler.answerMenu(self.slotid, 0)
 			self.showWait()
 		elif self.tag == "LIST":
-			print("answer LIST")
+			print("[Ci] answer LIST")
 			self.handler.answerMenu(self.slotid, 0)
 			self.showWait()
 		elif self.tag == "ENQ":
@@ -186,15 +186,15 @@ class MMIDialog(Screen):
 			self.handler.stopMMI(self.slotid)
 			self.closeMmi()
 		elif self.tag in ("MENU", "LIST"):
-			print("cancel list")
+			print("[Ci] cancel list")
 			self.handler.answerMenu(self.slotid, 0)
 			self.showWait()
 		elif self.tag == "ENQ":
-			print("cancel enq")
+			print("[Ci] cancel enq")
 			self.handler.cancelEnq(self.slotid)
 			self.showWait()
 		else:
-			print("give cancel action to ci")
+			print("[Ci] give cancel action to ci")
 
 	def keyConfigEntry(self, key):
 		self.timer.stop()
@@ -287,12 +287,17 @@ class MMIDialog(Screen):
 
 	def ciStateChanged(self):
 		do_close = False
-		if self.action == 0 or self.action == 1: #reset = 0, init = 1
+		if self.action == 0:			#reset
+			do_close = True
+		if self.action == 1:			#init
 			do_close = True
 
 		#module still there ?
+		if self.handler.getState(self.slotid) != 2:
+			do_close = True
+
 		#mmi session still active ?
-		if self.handler.getState(self.slotid) != 2 or self.handler.getMMIState(self.slotid) != 1:
+		if self.handler.getMMIState(self.slotid) != 1:
 			do_close = True
 
 		if do_close:
@@ -324,7 +329,7 @@ class CiMessageHandler:
 			elif handler.availableMMI(slot) == 1:
 				if self.session:
 					show_ui = False
-					if config.ci[slot].show_ci_messages.value:
+					if config.ci[slot].show_ci_messages.value and config.misc.firstrun.value == 0:
 						show_ui = True
 					screen_data = handler.getMMIScreen(slot)
 					if config.ci[slot].use_static_pin.value:
@@ -410,7 +415,7 @@ class CiSelection(Screen):
 	def selectionChanged(self):
 		if self.slot > 1:
 			cur = self["entries"].getCurrent()
-			if cur and len(cur) > 2:
+			if cur and len(cur) > 2 and cur[0] != _("CI Operation Mode"):
 				self["text"].setText(cur[0] == "**************************" and " " or cur[0] == _("DVB CI Delay") and _("All slots") or _("Slot %d") % (cur[3] + 1))
 
 	def keyConfigEntry(self, key):
@@ -480,12 +485,12 @@ class CiSelection(Screen):
 
 	def okbuttonClick(self):
 		cur = self["entries"].getCurrent()
-		if cur and len(cur) > 2:
-			action = cur[2]
-			slot = cur[3]
-			if action == 3:
-				pass
-			elif action == 0: #reset
+		if cur and hasattr(self, "entryData"):
+			idx = self["entries"].getCurrentIndex()
+			entryData = self.entryData[idx]
+			action = entryData[0]
+			slot = entryData[1]
+			if action == 0: #reset
 				eDVBCI_UI.getInstance().setReset(slot)
 			elif action == 1: #init
 				eDVBCI_UI.getInstance().setInit(slot)
