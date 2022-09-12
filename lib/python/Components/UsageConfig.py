@@ -640,7 +640,6 @@ def InitUsageConfig():
 	config.epg.netmed = ConfigYesNo(default=True)
 	config.epg.virgin = ConfigYesNo(default=False)
 	config.epg.opentv = ConfigYesNo(default=False)
-	config.misc.showradiopic = ConfigYesNo(default=True)
 
 
 	config.misc.epgratingcountry = ConfigSelection(default="", choices=[("", _("Auto Detect")), ("ETSI", _("Generic")), ("AUS", _("Australia"))])
@@ -715,7 +714,7 @@ def InitUsageConfig():
 	config.misc.epgratingcountry = ConfigSelection(default="", choices=[("", _("Auto Detect")), ("ETSI", _("Generic")), ("AUS", _("Australia"))])
 	config.misc.epggenrecountry = ConfigSelection(default="", choices=[("", _("Auto Detect")), ("ETSI", _("Generic")), ("AUS", _("Australia"))])
 
-	config.misc.showradiopic = ConfigYesNo(default = True)
+	config.misc.showradiopic = ConfigYesNo(default=True)
 
 	choicelist = [("newline", _("new line")), ("2newlines", _("2 new lines")), ("space", _("space")), ("dot", " . "), ("dash", " - "), ("asterisk", " * "), ("nothing", _("nothing"))]
 	config.epg.fulldescription_separator = ConfigSelection(default="2newlines", choices=choicelist)
@@ -1038,7 +1037,7 @@ def InitUsageConfig():
 	])
 	config.subtitles.subtitle_rewrap = ConfigYesNo(default=False)
 	config.subtitles.colourise_dialogs = ConfigYesNo(default=False)
-	config.subtitles.subtitle_borderwidth = ConfigSelection(default="3", choices=["1", "2", "3", "4", "5"])
+	config.subtitles.subtitle_borderwidth = ConfigSelection(default="3", choices=["%d" % x for x in range(1, 6)])
 	config.subtitles.subtitle_fontsize = ConfigSelection(default="40", choices=["%d" % x for x in range(16, 101) if not x % 2])
 	config.subtitles.showbackground = ConfigYesNo(default=False)
 
@@ -1294,7 +1293,7 @@ def updateChoices(sel, choices):
 
 def preferredPath(path):
 	if config.usage.setup_level.index < 2 or path == "<default>" or not path:
-		return None  # config.usage.default_path.value, but delay lookup until usage
+		return None	 # config.usage.default_path.value, but delay lookup until usage
 	elif path == "<current>":
 		return config.movielist.last_videodir.value
 	elif path == "<timer>":
@@ -1330,6 +1329,7 @@ def showrotorpositionChoicesUpdate(update=False):
 	else:
 		config.misc.showrotorposition.setChoices(choiceslist, "no")
 	SystemInfo["isRotorTuner"] = count > 0
+
 
 def preferredTunerChoicesUpdate(update=False):
 	dvbs_nims = [("-2", _("disabled"))]
@@ -1401,6 +1401,7 @@ def preferredTunerChoicesUpdate(update=False):
 	SystemInfo["DVB-T_priority_tuner_available"] = len(dvbt_nims) > 3 and any(len(i) > 2 for i in (dvbs_nims, dvbc_nims, atsc_nims))
 	SystemInfo["DVB-C_priority_tuner_available"] = len(dvbc_nims) > 3 and any(len(i) > 2 for i in (dvbs_nims, dvbt_nims, atsc_nims))
 	SystemInfo["ATSC_priority_tuner_available"] = len(atsc_nims) > 3 and any(len(i) > 2 for i in (dvbs_nims, dvbc_nims, dvbt_nims))
+
 
 def patchTuxtxtConfFile(dummyConfigElement):
 	print("[UsageConfig] patching tuxtxt2.conf")
@@ -1475,6 +1476,7 @@ def patchTuxtxtConfFile(dummyConfigElement):
 			["TTFHeightFactor16", config.usage.tuxtxt_TTFHeightFactor16.value]
 		]
 	tuxtxt2.append(["CleanAlgo", config.usage.tuxtxt_CleanAlgo.value])
+
 	TUXTXT_CFG_FILE = "/etc/tuxtxt/tuxtxt2.conf"
 	command = "sed -i -r '"
 	for f in tuxtxt2:
@@ -1489,12 +1491,15 @@ def patchTuxtxtConfFile(dummyConfigElement):
 	except:
 		print("[UsageConfig] Error: failed to patch %s!" % TUXTXT_CFG_FILE)
 	print("[UsageConfig] patched tuxtxt2.conf")
+
 	config.usage.tuxtxt_ConfFileHasBeenPatched.setValue(True)
+
 
 def dropEPGNewLines(text):
 	if config.epg.replace_newlines.value != "no":
 		text = text.replace('\x0a', replaceEPGSeparator(config.epg.replace_newlines.value))
 	return text
+
 
 def replaceEPGSeparator(code):
 	return {"newline": "\n", "2newlines": "\n\n", "space": " ", "dash": " - ", "dot": " . ", "asterisk": " * ", "hashtag": " # ", "nothing": ""}.get(code)

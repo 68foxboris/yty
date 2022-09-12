@@ -1,7 +1,10 @@
-from Components.config import config, ConfigSlider, ConfigSelection, ConfigYesNo, ConfigEnableDisable, ConfigSubsection, ConfigBoolean, ConfigSelectionNumber, ConfigNothing, NoSave
+from Components.config import config, ConfigSlider, ConfigSelection, ConfigYesNo, ConfigEnableDisable, ConfigOnOff, ConfigSubsection, ConfigBoolean, ConfigSelectionNumber, ConfigNothing, NoSave
 from enigma import eAVSwitch, eDVBVolumecontrol, getDesktop
 from Components.SystemInfo import SystemInfo
+from Tools.HardwareInfo import HardwareInfo
 import os
+
+model = HardwareInfo().get_device_model()
 
 
 class AVSwitch:
@@ -68,7 +71,10 @@ class AVSwitch:
 
 def InitAVSwitch():
 	config.av = ConfigSubsection()
-	config.av.yuvenabled = ConfigBoolean(default=True)
+	if model == "vuduo":
+		config.av.yuvenabled = ConfigBoolean(default=False)
+	else:
+		config.av.yuvenabled = ConfigBoolean(default=True)
 	colorformat_choices = {"cvbs": "CVBS"}
 
 	# when YUV, Scart or S-Video is not support by HW, don't let the user select it
@@ -116,7 +122,7 @@ def InitAVSwitch():
 			policy2_choices.update({"auto": _("Auto")})
 	except:
 		print("[AVSwitch] Read /proc/stb/video/policy2_choices failed.")
-	config.av.policy_169 = ConfigSelection(choices=policy2_choices, default="letterbox")
+	config.av.policy_169 = ConfigSelection(choices=policy2_choices, default="scale")
 	policy_choices = {
 	# TRANSLATORS: (aspect ratio policy: black bars on left/right) in doubt, keep english term.
 	"pillarbox": _("Pillarbox"),
@@ -145,7 +151,7 @@ def InitAVSwitch():
 			policy_choices.update({"auto": _("Auto")})
 	except:
 		print("[AVSwitch] Read /proc/stb/video/policy_choices failed.")
-	config.av.policy_43 = ConfigSelection(choices=policy_choices, default="pillarbox")
+	config.av.policy_43 = ConfigSelection(choices=policy_choices, default="scale")
 	config.av.tvsystem = ConfigSelection(choices={"pal": "PAL", "ntsc": "NTSC", "multinorm": "multinorm"}, default="pal")
 	config.av.wss = ConfigEnableDisable(default=True)
 	config.av.generalAC3delay = ConfigSelectionNumber(-1000, 1000, 5, default=0)
@@ -155,7 +161,12 @@ def InitAVSwitch():
 	iAVSwitch = AVSwitch()
 
 	def setColorFormat(configElement):
-		map = {"cvbs": 0, "rgb": 1, "svideo": 2, "yuv": 3}
+		if model == "et6x00":
+			map = {"cvbs": 3, "rgb": 3, "svideo": 2, "yuv": 3}
+		elif model == "gb7356":
+			map = {"cvbs": 0, "rgb": 3, "svideo": 2, "yuv": 3}
+		else:
+			map = {"cvbs": 0, "rgb": 1, "svideo": 2, "yuv": 3}
 		iAVSwitch.setColorFormat(map[configElement.value])
 
 	def setAspectRatio(configElement):
@@ -176,7 +187,12 @@ def InitAVSwitch():
 	config.av.wss.addNotifier(setWSS)
 
 	iAVSwitch.setInput("ENCODER") # init on startup
-	SystemInfo["ScartSwitch"] = eAVSwitch.getInstance().haveScartSwitch()
+	if model in ("gb7356", "et5x00", "et6x00", "ixussone", "ixusszero", "axodin", "axase3", "optimussos1", "optimussos2", "gb800seplus", "gb800ueplus", "gbultrase", "gbultraue", "gbultraueh", "twinboxlcd"):
+		detected = False
+	else:
+		detected = eAVSwitch.getInstance().haveScartSwitch()
+
+	SystemInfo["ScartSwitch"] = detected
 
 	def getProc(node):
 		return procNode.get(node)
@@ -257,6 +273,14 @@ def InitAVSwitch():
 				(getProc("force_ddp"))
 			]
 			config.av.transcodeac3plus = ConfigSelection(choices=choices, default=default)
+		elif model in ("gb7252", "gb72604"):
+			choices = [
+				(getProc("downmix")),
+				(getProc("passthrough")),
+				(getProc("multichannel")),
+				(getProc("force_ac3")),
+				(getProc("force_dts"))
+			]
 			config.av.transcodeac3plus = ConfigSelection(choices=choices, default=default)
 		elif SystemInfo["CanProc"]:
 			proc = "/proc/stb/audio/ac3plus_choices"
@@ -330,6 +354,17 @@ def InitAVSwitch():
 				(getProc("passthrough")),
 				(getProc("multichannel")),
 				(getProc("hdmi_best"))
+			]
+		elif model in ("gb7252", "gb72604"):
+			choices = [
+				(getProc("downmix")),
+				(getProc("passthrough")),
+				(getProc("multichannel")),
+				(getProc("force_ac3")),
+				(getProc("force_dts")),
+				(getProc("use_hdmi_cacenter")),
+				(getProc("wide")),
+				(getProc("extrawide"))
 			]
 		elif SystemInfo["CanProc"]:
 			proc = "/proc/stb/audio/aac_choices"
@@ -415,7 +450,10 @@ def InitAVSwitch():
 			except IOError:
 				print("[AVSwitch] couldn't write pep_scaler_sharpness")
 
-		config.av.scaler_sharpness = ConfigSlider(default=13, limits=(0, 26))
+		if model == "gb7356":
+			config.av.scaler_sharpness = ConfigSlider(default=5, limits=(0, 26))
+		else:
+			config.av.scaler_sharpness = ConfigSlider(default=13, limits=(0, 26))
 		config.av.scaler_sharpness.addNotifier(setScaler_sharpness)
 	else:
 		config.av.scaler_sharpness = NoSave(ConfigNothing())
@@ -470,7 +508,7 @@ def InitAVSwitch():
 		def set3DSpeaker(configElement):
 			print("[AVSwitch] Write to /proc/stb/audio/3d_surround_speaker_position")
 			open("/proc/stb/audio/3d_surround_speaker_position", "w").write(configElement.value)
-		config.av.speaker_3d = ConfigSelection(default="center", choices=[("center", _("center")), ("wide", _("wide")), ("extrawide", _("extra wide"))])
+		config.av.speaker_3d = ConfigSelection(default="disabled", choices=[("disabled", _("off")), ("center", _("center")), ("wide", _("wide")), ("extrawide", _("extra wide"))])
 		config.av.speaker_3d.addNotifier(set3DSpeaker)
 
 	if SystemInfo["Can3DSurroundSpeaker"]:
