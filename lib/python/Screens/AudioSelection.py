@@ -252,7 +252,10 @@ class AudioSelection(ConfigListScreen, Screen):
 					streams.append((x, "", number, description, language, selected))
 			else:
 				conflist.append(("",))
-
+			if SystemInfo["Canedidchecking"]:
+				self.settings.bypassEdidChecking = ConfigYesNo(default=config.av.bypassEdidChecking.value)
+				self.settings.bypassEdidChecking.addNotifier(self.changeEDIDChecking, initial_call=False)
+				conflist.append(getConfigListEntry(_("Bypass HDMI EDID Check"), self.settings.bypassEdidChecking, None))
 			if hasattr(self.infobar, "runPlugin"):
 				class PluginCaller:
 					def __init__(self, fnc, *args):
@@ -409,8 +412,8 @@ class AudioSelection(ConfigListScreen, Screen):
 		config.av.btaudio.save()
 
 	def changeEDIDChecking(self, edidchecking):
-		config.av.bypass_edid_checking.value = edidchecking.value
-		config.av.bypass_edid_checking.save()
+		config.av.bypassEdidChecking.value = edidchecking.value
+		config.av.bypassEdidChecking.save()
 
 	def changeMode(self, mode):
 		if mode is not None and self.audioChannel:

@@ -630,7 +630,7 @@ def InitUsageConfig():
 
 	config.usage.boolean_graphic = ConfigSelection(default="true", choices={"false": _("no"), "true": _("yes"), "only_bool": _("yes, but not in multi selections")})
 
-	config.osd.alpha_teletext = ConfigSelectionNumber(default=255, stepwidth=1, min=0, max=255, wraparound=False)
+	config.osd_alpha_teletext = ConfigSelectionNumber(default=255, stepwidth=1, min=0, max=255, wraparound=False)
 
 	config.epg = ConfigSubsection()
 	config.epg.eit = ConfigYesNo(default=True)
@@ -876,41 +876,132 @@ def InitUsageConfig():
 
 	config.usage.historymode = ConfigSelection(default='1', choices=[('0', _('Just zap')), ('1', _('Show menu'))])
 
-	if SystemInfo["VFD_scroll_repeats"]:
-		def scroll_repeats(el):
-			open(SystemInfo["VFD_scroll_repeats"], "w").write(el.value)
-		choicelist = []
-		for i in range(1, 11, 1):
-			choicelist.append((str(i)))
-		config.usage.vfd_scroll_repeats = ConfigSelection(default="3", choices=choicelist)
-		config.usage.vfd_scroll_repeats.addNotifier(scroll_repeats, immediate_feedback=False)
+	if SystemInfo["Canedidchecking"]:
+		def setHasBypassEdidChecking(configElement):
+			open(SystemInfo["Canedidchecking"], "w").write("00000001" if configElement.value else "00000000")
+		config.av.bypassEdidChecking = ConfigYesNo(default=False)
+		config.av.bypassEdidChecking.addNotifier(setHasBypassEdidChecking)
 
-	if SystemInfo["VFD_scroll_delay"]:
-		def scroll_delay(el):
-			open(SystemInfo["VFD_scroll_delay"], "w").write(el.value)
-		choicelist = []
-		for i in range(0, 1001, 50):
-			choicelist.append((str(i)))
-		config.usage.vfd_scroll_delay = ConfigSelection(default="150", choices=choicelist)
-		config.usage.vfd_scroll_delay.addNotifier(scroll_delay, immediate_feedback=False)
+	if SystemInfo["HasColorspace"]:
+		def setHaveColorspace(configElement):
+			open(SystemInfo["HasColorspace"], "w").write(configElement.value)
+		if SystemInfo["HasColorspaceSimple"]:
+			config.av.hdmicolorspace = ConfigSelection(default="Edid(Auto)", choices={
+				"Edid(Auto)": _("Auto"),
+				"Hdmi_Rgb": _("RGB"),
+				"444": _("YCbCr444"),
+				"422": _("YCbCr422"),
+				"420": _("YCbCr420")
+			})
+		else:
+			if model == "vuzero4k" or model in ("dm900", "dm920"):
+				config.av.hdmicolorspace = ConfigSelection(default="Edid(Auto)", choices={
+					"Edid(Auto)": _("Auto"),
+					"Hdmi_Rgb": _("RGB"),
+					"Itu_R_BT_709": _("BT709"),
+					"DVI_Full_Range_RGB": _("Full Range RGB"),
+					"FCC": _("FCC 1953"),
+					"Itu_R_BT_470_2_BG": _("BT470 BG"),
+					"Smpte_170M": _("Smpte 170M"),
+					"Smpte_240M": _("Smpte 240M"),
+					"Itu_R_BT_2020_NCL": _("BT2020 NCL"),
+					"Itu_R_BT_2020_CL": _("BT2020 CL"),
+					"XvYCC_709": _("BT709 XvYCC"),
+					"XvYCC_601": _("BT601 XvYCC")
+				})
+			else:
+				config.av.hdmicolorspace = ConfigSelection(default="auto", choices={
+					"auto": _("Auto"),
+					"rgb": _("RGB"),
+					"420": _("420"),
+					"422": _("422"),
+					"444": _("444")
+				})
+		config.av.hdmicolorspace.addNotifier(setHaveColorspace)
 
-	if SystemInfo["VFD_initial_scroll_delay"]:
-		def initial_scroll_delay(el):
-			open(SystemInfo["VFD_initial_scroll_delay"], "w").write(el.value)
-		choicelist = []
-		for i in range(0, 20001, 500):
-			choicelist.append((str(i)))
-		config.usage.vfd_initial_scroll_delay = ConfigSelection(default="1000", choices=choicelist)
-		config.usage.vfd_initial_scroll_delay.addNotifier(initial_scroll_delay, immediate_feedback=False)
+	if SystemInfo["HasColordepth"]:
+		def setHaveColordepth(configElement):
+			open(SystemInfo["HasColordepth"], "w").write(configElement.value)
+		config.av.hdmicolordepth = ConfigSelection(default="auto", choices={
+			"auto": _("Auto"),
+			"8bit": _("8 bit"),
+			"10bit": _("10 bit"),
+			"12bit": _("12 bit")
+		})
+		config.av.hdmicolordepth.addNotifier(setHaveColordepth)
 
-	if SystemInfo["VFD_final_scroll_delay"]:
-		def final_scroll_delay(el):
-			open(SystemInfo["VFD_final_scroll_delay"], "w").write(el.value)
-		choicelist = []
-		for i in range(0, 20001, 500):
-			choicelist.append((str(i)))
-		config.usage.vfd_final_scroll_delay = ConfigSelection(default="1000", choices=choicelist)
-		config.usage.vfd_final_scroll_delay.addNotifier(final_scroll_delay, immediate_feedback=False)
+	if SystemInfo["HasHDMIpreemphasis"]:
+		def setHDMIpreemphasis(configElement):
+			open(SystemInfo["HasHDMIpreemphasis"], "w").write("on" if configElement.value else "off")
+		config.av.hdmipreemphasis = ConfigYesNo(default=False)
+		config.av.hdmipreemphasis.addNotifier(setHDMIpreemphasis)
+
+	if SystemInfo["HasColorimetry"]:
+		def setColorimetry(configElement):
+			open(SystemInfo["HasColorimetry"], "w").write(configElement.value)
+		config.av.hdmicolorimetry = ConfigSelection(default="auto", choices=[
+			("auto", _("Auto")),
+			("bt2020ncl", _("BT 2020 NCL")),
+			("bt2020cl", _("BT 2020 CL")),
+			("bt709", _("BT 709"))
+		])
+		config.av.hdmicolorimetry.addNotifier(setColorimetry)
+
+	if SystemInfo["HasHdrType"]:
+		def setHdmiHdrType(configElement):
+			open(SystemInfo["HasHdrType"], "w").write(configElement.value)
+		config.av.hdmihdrtype = ConfigSelection(default="auto", choices={
+			"auto": _("Auto"),
+			"none": _("SDR"),
+			"hdr10": _("HDR10"),
+			"hlg": _("HLG"),
+			"dolby": _("Dolby")
+		})
+		config.av.hdmihdrtype.addNotifier(setHdmiHdrType)
+
+	if SystemInfo["HDRSupport"]:
+		def setHlgSupport(configElement):
+			print("[UsageConfig] Read /proc/stb/hdmi/hlg_support")
+			open("/proc/stb/hdmi/hlg_support", "w").write(configElement.value)
+		config.av.hlg_support = ConfigSelection(default="auto(EDID)", choices=[
+			("auto(EDID)", _("Controlled by HDMI")),
+			("yes", _("Force enabled")),
+			("no", _("Force disabled"))
+		])
+		config.av.hlg_support.addNotifier(setHlgSupport)
+
+		def setHdr10Support(configElement):
+			print("[UsageConfig] Read /proc/stb/hdmi/hdr10_support")
+			open("/proc/stb/hdmi/hdr10_support", "w").write(configElement.value)
+		config.av.hdr10_support = ConfigSelection(default="auto(EDID)", choices=[
+			("auto(EDID)", _("Controlled by HDMI")),
+			("yes", _("Force enabled")),
+			("no", _("Force disabled"))
+		])
+		config.av.hdr10_support.addNotifier(setHdr10Support)
+
+		def setDisable12Bit(configElement):
+			print("[UsageConfig] Read /proc/stb/video/disable_12bit")
+			open("/proc/stb/video/disable_12bit", "w").write("on" if configElement.value else "off")
+		config.av.allow_12bit = ConfigYesNo(default=False)
+		config.av.allow_12bit.addNotifier(setDisable12Bit)
+
+		def setDisable10Bit(configElement):
+			print("[UsageConfig] Read /proc/stb/video/disable_10bit")
+			open("/proc/stb/video/disable_10bit", "w").write("on" if configElement.value else "off")
+		config.av.allow_10bit = ConfigYesNo(default=False)
+		config.av.allow_10bit.addNotifier(setDisable10Bit)
+
+	if SystemInfo["CanSyncMode"]:
+		def setSyncMode(configElement):
+			print("[UsageConfig] Read /proc/stb/video/sync_mode")
+			open("/proc/stb/video/sync_mode", "w").write(configElement.value)
+		config.av.sync_mode = ConfigSelection(default="slow", choices={
+			"slow": _("Slow motion"),
+			"hold": _("Hold first frame"),
+			"black": _("Black screen")
+		})
+		config.av.sync_mode.addNotifier(setSyncMode)
 
 	config.subtitles = ConfigSubsection()
 	config.subtitles.show = ConfigYesNo(default=True)
@@ -960,7 +1051,31 @@ def InitUsageConfig():
 	config.subtitles.subtitle_noPTSrecordingdelay = ConfigSelection(default="315000", choices=subtitle_delay_choicelist)
 
 	config.subtitles.dvb_subtitles_yellow = ConfigYesNo(default=False)
-	config.subtitles.dvb_subtitles_original_position = ConfigSelection(default="0", choices=[("0", _("Original")), ("1", _("Fixed")), ("2", _("Relative"))])
+	config.subtitles.dvb_subtitles_original_position = ConfigSelection(default="0", choices=[
+		("0", _("Original")),
+		("1", _("Fixed")),
+		("2", _("Relative"))
+	])
+	config.subtitles.subtitle_position = ConfigSelection(default="50", choices=[
+		"0",
+		"10",
+		"20",
+		"30",
+		"40",
+		"50",
+		"60",
+		"70",
+		"80",
+		"90",
+		"100",
+		"150",
+		"200",
+		"250",
+		"300",
+		"350",
+		"400",
+		"450"
+	])
 	config.subtitles.dvb_subtitles_centered = ConfigYesNo(default=False)
 	config.subtitles.subtitle_bad_timing_delay = ConfigSelection(default="0", choices=subtitle_delay_choicelist)
 	config.subtitles.dvb_subtitles_backtrans = ConfigSelection(default="0", choices=[
