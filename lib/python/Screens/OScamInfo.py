@@ -50,9 +50,11 @@ sizeH = 700
 HDSKIN = False
 screenwidth = getDesktop(0).size().width()
 if screenwidth and screenwidth == 1920:
+	f = 1.5
 	sizeH = screenwidth - 150
 	HDSKIN = True
 elif screenwidth and screenwidth > 1920:
+	f = 3
 	HDSKIN = True
 	sizeH = screenwidth - 300
 elif screenwidth and screenwidth > 1024:
@@ -72,9 +74,9 @@ class OscamInfo:
 	SRVNAME = 4
 	ECMTIME = 5
 	IP_PORT = 6
-	HEAD = {NAME: _("Reader/User"), PROT: _("Protocol"),
-		CAID_SRVID: _("Caid:Srvid"), SRVNAME: _("Channel Name"),
-		ECMTIME: _("Ecm Time"), IP_PORT: _("IP Address")}
+	HEAD = {NAME: _("Label"), PROT: _("Protocol"),
+		CAID_SRVID: _("CAID:SrvID"), SRVNAME: _("Serv.Name"),
+		ECMTIME: _("ECM Time"), IP_PORT: _("IP Address")}
 	version = ""
 
 	def confPath(self):
@@ -206,7 +208,7 @@ class OscamInfo:
 			elif hasattr(e, "code"):
 				err = str(e.code)
 		if err is not False:
-			print("[openWebIF] error: %s" % err)
+			print("[OScamInfo] Open WebIF error: %s" % err)
 			return False, err
 		else:
 			return True, data
@@ -376,9 +378,9 @@ class OscamInfo:
 			data = open(ecminfo, "r").readlines()
 			for i in data:
 				if "caid" in i:
-					result.append((_("Caid"), i.split(":")[1].strip()))
+					result.append((_("CAID"), i.split(":")[1].strip()))
 				elif "pid" in i:
-					result.append((_("Pid"), i.split(":")[1].strip()))
+					result.append((_("PID"), i.split(":")[1].strip()))
 				elif "prov" in i:
 					result.append((_("Provider"), i.split(":")[1].strip()))
 				elif "reader" in i:
@@ -390,7 +392,7 @@ class OscamInfo:
 				elif "hops" in i:
 					result.append((_("Hops"), i.split(":")[1].strip()))
 				elif "ecm time" in i:
-					result.append((_("Ecm Time"), i.split(":")[1].strip()))
+					result.append((_("ECM Time"), i.split(":")[1].strip()))
 			return result
 		else:
 			return "%s not found" % self.ecminfo
@@ -421,7 +423,7 @@ class OscamInfoMenu(Screen):
 			self.skin = """<screen position="center,center" size="425,260" title="%s Info Main Menu">""" % NAMEBIN
 			self.skin += """<widget name="mainmenu" position="33,33" size="392,220" zPosition="1" scrollbarMode="showOnDemand" />"""
 		self.skin += """</screen>"""
-		self.menu = [_("Show Ecm info"), _("Show Clients"), _("Show Readers/Proxies"), _("Show Log"), _("Card info (CCcam-Reader)"), _("Ecm Statistics"), _("Setup")]
+		self.menu = [_("Show Ecm info"), _("Show Clients"), _("Show Readers/Proxies"), _("Show Log"), _("Card infos (CCcam-Reader)"), _("Ecm Statistics"), _("Setup")]
 		self.osc = OscamInfo()
 		self["mainmenu"] = oscMenuList([])
 		self["actions"] = NumberActionMap(["OkCancelActions", "InputActions", "ColorActions"],
@@ -656,7 +658,7 @@ class oscInfo(Screen, OscamInfo):
 		self.itemheight = 25
 		self.sizeLH = sizeH
 		self.skin = """<screen position="center,center" size="%d, %d" title="Client Info" >""" % (sizeH, ysize)
-		button_width = int(sizeH / 4)
+		button_width = int(sizeH // 4)
 		for k, v in enumerate(["red", "green", "yellow", "blue"]):
 			xpos = k * button_width
 			self.skin += """<ePixmap name="%s" position="%d,%d" size="40,40" pixmap="buttons/key_%s.png" zPosition="1" transparent="1" alphatest="blend" />""" % (v, xpos, ypos, v)
@@ -814,6 +816,12 @@ class oscInfo(Screen, OscamInfo):
 				png = LoadPixmap(png)
 			if png is not None:
 				res.append((eListboxPythonMultiContent.TYPE_PIXMAP, 0, (self.itemheight - 2) * f, self.sizeLH, 2 * f, png))
+		if heading and f == 1.5:
+			pngfhd = resolveFilename(SCOPE_CURRENT_SKIN, "div-h-fhd.png")
+			if fileExists(pngfhd):
+				pngfhd = LoadPixmap(pngfhd)
+			if pngfhd is not None:
+				res.append((eListboxPythonMultiContent.TYPE_PIXMAP, 0, int((self.itemheight - 2) * f), self.sizeLH, int(2 * f), pngfhd))
 		return res
 
 	def buildLogListEntry(self, listentry):
@@ -962,7 +970,7 @@ class oscEntitlements(Screen, OscamInfo):
 		caids = list(data.keys())
 		caids.sort()
 		outlist = []
-		res = [("Caid", _("System"), "1", "2", "3", "4", "5", "Total", _("Reshare"), "")]
+		res = [("CAID", _("System"), "1", "2", "3", "4", "5", "Total", _("Reshare"), _("Providers: "))]
 		for i in caids:
 			csum = 0
 			ca_id = i
@@ -1009,7 +1017,7 @@ class oscEntitlements(Screen, OscamInfo):
 			chop = int(i.attrib["hop"])
 			if chop > 5:
 				chop = 5
-			if ccaid in caid:
+			if "ccaid" in caid:
 				if "hop" in caid[ccaid]:
 					caid[ccaid]["hop"][chop] += 1
 				else:
@@ -1104,7 +1112,7 @@ class oscReaderStats(Screen, OscamInfo):
 		caids = list(data.keys())
 		caids.sort()
 		outlist = []
-		res = [("Caid", "System", "1", "2", "3", "4", "5", "Total", "Reshare", "")]
+		res = [("CAID", "System", "1", "2", "3", "4", "5", "Total", "Reshare", "")]
 		for i in caids:
 			csum = 0
 			ca_id = i
@@ -1190,7 +1198,7 @@ class oscReaderStats(Screen, OscamInfo):
 							title2 = _("(Show only reader)" + " (%s)" % self.reader)
 
 		outlist = self.sortData(result, 7, True)
-		out = [(_("Reader/User"), _("Caid"), _("Channel"), _("Ecm avg"), _("Ecm last"), _("Status"), _("Last Req."), _("Total"))]
+		out = [(_("Label"), _("CAID"), _("Channel"), _("ECM avg"), _("ECM last"), _("Status"), _("Last Req."), _("Total"))]
 		for i in outlist:
 			out.append((i[0], i[1], i[2], i[3], i[4], i[5], i[6], str(i[7])))
 
