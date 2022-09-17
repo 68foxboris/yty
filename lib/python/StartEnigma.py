@@ -95,42 +95,33 @@ def setEPGCachePath(configElement):
 ####################################################
 
 profile("Twisted")
-try:  # Configure the twisted processor
-	from twisted.python.runtime import platform
-	platform.supportsThreads = lambda: True
-	from e2reactor import install
-	install()
+try:
+	import twisted.python.runtime
+	twisted.python.runtime.platform.supportsThreads = lambda: True
+
+	import e2reactor
+	e2reactor.install()
+
 	from twisted.internet import reactor
 
 	def runReactor():
 		reactor.run(installSignalHandlers=False)
-
 except ImportError:
-	print("[StartEnigma] Error: Twisted not available!")
+	print("[StartEnigma] Twisted not available")
 
 	def runReactor():
 		enigma.runMainloop()
 
-try:  # Configure the twisted logging
-	from twisted.python import log, util
-
-	def quietEmit(self, eventDict):
-		text = log.textFromEventDict(eventDict)
-		if text is None:
-			return
-		formatDict = {
-			"text": text.replace("\n", "\n\t")
-		}
-		msg = log._safeFormat("%(text)s\n", formatDict)
-		util.untilConcludes(self.write, msg)
-		util.untilConcludes(self.flush)
-
-	logger = log.FileLogObserver(stdout)
-	log.FileLogObserver.emit = quietEmit
-	log.startLoggingWithObserver(logger.emit)
+try:
+	from twisted.python import log
+	config.misc.enabletwistedlog = ConfigYesNo(default = False)
+	if config.misc.enabletwistedlog.value == True:
+		log.startLogging(open('/tmp/twisted.log', 'w'))
+	else:
+		log.startLogging(sys.stdout)
 except ImportError:
-	print("[StartEnigma] Error: Twisted not available!")
-
+	print("twisted not available")
+	pass
 
 profile("LOAD:Plugin")
 
@@ -215,29 +206,37 @@ class Session:
 		self.nav = navigation
 		self.delay_timer = enigma.eTimer()
 		self.delay_timer.callback.append(self.processDelay)
+
 		self.current_dialog = None
+
 		self.dialog_stack = []
 		self.summary_stack = []
 		self.summary = None
+
 		self.in_exec = False
+
 		self.screen = SessionGlobals(self)
+
 		for p in plugins.getPlugins(PluginDescriptor.WHERE_SESSIONSTART):
 			try:
 				p(reason=0, session=self)
 			except:
-				print("[StartEnigma] Error: Plugin raised exception at WHERE_SESSIONSTART!")
+				print("[StartEnigma] Plugin raised exception at WHERE_SESSIONSTART")
 				import traceback
 				traceback.print_exc()
 
 	def processDelay(self):
 		callback = self.current_dialog.callback
+
 		retval = self.current_dialog.returnValue
+
 		if self.current_dialog.isTmp:
 			self.current_dialog.doClose()
 #			dump(self.current_dialog)
 			del self.current_dialog
 		else:
 			del self.current_dialog.callback
+
 		self.popCurrent()
 		if callback is not None:
 			callback(*retval)
@@ -246,12 +245,15 @@ class Session:
 		assert not self.in_exec
 		self.in_exec = True
 		c = self.current_dialog
+
 		# when this is an execbegin after a execend of a "higher" dialog,
 		# popSummary already did the right thing.
 		if first:
 			self.instantiateSummaryDialog(c)
+
 		c.saveKeyboardMode()
 		c.execBegin()
+
 		# when execBegin opened a new dialog, don't bother showing the old one.
 		if c == self.current_dialog and do_show:
 			c.show()
@@ -259,9 +261,11 @@ class Session:
 	def execEnd(self, last=True):
 		assert self.in_exec
 		self.in_exec = False
+
 		self.current_dialog.execEnd()
 		self.current_dialog.restoreKeyboardMode()
 		self.current_dialog.hide()
+
 		if last and self.summary:
 			self.current_dialog.removeSummary(self.summary)
 			self.popSummary()
@@ -283,13 +287,16 @@ class Session:
 			screen.addSummary(self.summary)
 
 	def doInstantiateDialog(self, screen, arguments, kwargs, desktop):
-		dialog = screen(self, *arguments, **kwargs)  # Create dialog.
-		if dialog is None:
+		# create dialog
+		dlg = screen(self, *arguments, **kwargs)
+		if dlg is None:
 			return
-		readSkin(dialog, None, dialog.skinName, desktop)  # Read skin data.
-		dialog.setDesktop(desktop)  # Create GUI view of this dialog.
-		dialog.applySkin()
-		return dialog
+		# read skin data
+		readSkin(dlg, None, dlg.skinName, desktop)
+		# create GUI view of this dialog
+		dlg.setDesktop(desktop)
+		dlg.applySkin()
+		return dlg
 
 	def pushCurrent(self):
 		if self.current_dialog is not None:
@@ -307,47 +314,50 @@ class Session:
 		self.pushCurrent()
 		self.current_dialog = dialog
 		self.current_dialog.isTmp = False
-		self.current_dialog.callback = None  # Would cause re-entrancy problems.
+		self.current_dialog.callback = None # would cause re-entrancy problems.
 		self.execBegin()
 
 	def openWithCallback(self, callback, screen, *arguments, **kwargs):
-		dialog = self.open(screen, *arguments, **kwargs)
-		if dialog != "config.crash.bsodpython.value=True":
-			dialog.callback = callback
-			return dialog
+		dlg = self.open(screen, *arguments, **kwargs)
+		if dlg != 'config.crash.bsodpython.value=True':
+			dlg.callback = callback
+			return dlg
 
 	def open(self, screen, *arguments, **kwargs):
 		if self.dialog_stack and not self.in_exec:
-			raise RuntimeError("[StartEnigma] Error: Modal open are allowed only from a screen which is modal!")  # ...unless it's the very first screen.
+			raise RuntimeError("modal open are allowed only from a screen which is modal!")
+			# ...unless it's the very first screen.
+
 		self.pushCurrent()
 		if config.crash.bsodpython.value:
 			try:
-				dialog = self.current_dialog = self.instantiateDialog(screen, *arguments, **kwargs)
+				dlg = self.current_dialog = self.instantiateDialog(screen, *arguments, **kwargs)
 			except:
 				self.popCurrent()
 				raise
-				return "config.crash.bsodpython.value=True"
+				return 'config.crash.bsodpython.value=True'
 		else:
-			dialog = self.current_dialog = self.instantiateDialog(screen, *arguments, **kwargs)
-		dialog.isTmp = True
-		dialog.callback = None
+			dlg = self.current_dialog = self.instantiateDialog(screen, *arguments, **kwargs)
+		dlg.isTmp = True
+		dlg.callback = None
 		self.execBegin()
-		return dialog
+		return dlg
 
-	def close(self, screen, *retVal):
+	def close(self, screen, *retval):
 		if not self.in_exec:
 			print("[StartEnigma] Close after exec!")
 			return
-		# Be sure that the close is for the right dialog!  If it's
-		# not, you probably closed after another dialog was opened.
-		# This can happen if you open a dialog onExecBegin, and
-		# forget to do this only once.  After close of the top
-		# dialog, the underlying dialog will gain focus again (for
-		# a short time), thus triggering the onExec, which opens the
-		# dialog again, closing the loop.
-		if not screen == self.current_dialog:
-			raise AssertionError("[StartEnigma] Error: Attempt to close non-current screen!")
-		self.current_dialog.returnValue = retVal
+
+		# be sure that the close is for the right dialog!
+		# if it's not, you probably closed after another dialog
+		# was opened. this can happen if you open a dialog
+		# onExecBegin, and forget to do this only once.
+		# after close of the top dialog, the underlying will
+		# gain focus again (for a short time), thus triggering
+		# the onExec, which opens the dialog again, closing the loop.
+		assert screen == self.current_dialog
+
+		self.current_dialog.returnValue = retval
 		self.delay_timer.start(0, 1)
 		self.execEnd()
 
