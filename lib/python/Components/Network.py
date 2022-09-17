@@ -95,6 +95,12 @@ class Network:
 		fp.write("auto lo\n")
 		fp.write("iface lo inet loopback\n\n")
 		for ifacename, iface in self.ifaces.items():
+			if "dns-nameservers" in iface and iface['dns-nameservers']:
+				dns = []
+				for s in iface['dns-nameservers'].split()[1:]:
+					dns.append((self.convertIP(s)))
+				if dns:
+					self.nameservers = dns
 			if iface['up']:
 				fp.write("auto " + ifacename + "\n")
 				self.configuredInterfaces.append(ifacename)
@@ -122,20 +128,17 @@ class Network:
 
 	def writeNameserverConfig(self):
 		try:
-			Console().ePopen('rm -f /etc/resolv.conf')
 			fp = open('/etc/resolv.conf', 'w')
 			for nameserver in self.nameservers:
 				fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
 			fp.close()
 			if config.usage.dns.value.lower() not in ("dhcp-router", "custom"):
-				Console().ePopen('rm -f /etc/enigma2/nameserversdns.conf')
 				fp = open('/etc/enigma2/nameserversdns.conf', 'w')
 				for nameserver in self.nameservers:
 					fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
 				fp.close()
-			#self.restartNetwork()
-		except:
-			print("[Network] resolv.conf or nameserversdns.conf - writing failed")
+		except Exception as err:
+			print("[Network] DNS %s" % err)
 
 	def loadNetworkConfig(self, iface, callback=None):
 		interfaces = []
@@ -145,7 +148,7 @@ class Network:
 			interfaces = fp.readlines()
 			fp.close()
 		except:
-			print("[Network.py] interfaces - opening failed")
+			print("[Network] interfaces - opening failed")
 
 		ifaces = {}
 		currif = ""
@@ -153,13 +156,12 @@ class Network:
 			split = i.strip().split(' ')
 			if split[0] == "iface":
 				currif = split[1]
+				ifaces[currif] = {}
+				if len(split) == 4 and split[3] == "dhcp":
+					ifaces[currif]["dhcp"] = True
+				else:
+					ifaces[currif]["dhcp"] = False
 			if currif == iface: #read information only for available interfaces
-				if currif not in ifaces:
-					ifaces[currif] = {}
-					if len(split) == 4 and split[3] == "dhcp":
-						ifaces[currif]["dhcp"] = True
-					else:
-						ifaces[currif]["dhcp"] = False
 				if split[0] == "address":
 					ifaces[currif]["address"] = list(map(int, split[1].split('.')))
 					if "ip" in self.ifaces[currif]:
@@ -190,15 +192,15 @@ class Network:
 			self.configuredNetworkAdapters = self.configuredInterfaces
 			# load ns only once
 			self.loadNameserverConfig()
-			if config.usage.dns.value != "dhcp-router":
+			if config.usage.dns.value.lower() not in ("dhcp-router", "custom"):
 				self.writeNameserverConfig()
-			print("read configured interface:", ifaces)
+			print("[Network] read configured interface:", ifaces)
 			# remove any password before info is printed to the debug log
 			safe_ifaces = self.ifaces.copy()
 			for intf in safe_ifaces:
 				if 'preup' in safe_ifaces[intf] and safe_ifaces[intf]['preup']:
 					safe_ifaces[intf]['preup'] = re.sub(' -k "\S*" ', ' -k ********* ', safe_ifaces[intf]['preup'])
-			print("self.ifaces after loading:", safe_ifaces)
+			print("[Network] self.ifaces after loading:", safe_ifaces)
 			self.config_ready = True
 			self.msgPlugins()
 			if callback is not None:
@@ -213,13 +215,15 @@ class Network:
 		try:
 			if config.usage.dns.value.lower() in ("dhcp-router", "custom"):
 				fp = open('/etc/resolv.conf', 'r')
+				if (os.path.isfile("/etc/enigma2/nameserversdns.conf")):
+					Console().ePopen('rm /etc/enigma2/nameserversdns.conf')
 			else:
 				fp = open('/etc/enigma2/nameserversdns.conf', 'r')
 			resolv = fp.readlines()
 			fp.close()
 			self.nameservers = []
-		except:
-			print("[Network] resolv.conf or nameserversdns.conf - opening failed")
+		except Exception as err:
+			print("[Network] DNS %s" % err)
 
 		for line in resolv:
 			if self.regExpMatch(nameserverPattern, line) is not None:
@@ -227,7 +231,7 @@ class Network:
 				if ip:
 					self.nameservers.append(self.convertIP(ip))
 
-		print("nameservers:", self.nameservers)
+		print("[Network] nameservers:", self.nameservers)
 
 	def getInstalledAdapters(self):
 		return [x for x in os.listdir('/sys/class/net') if not self.isBlacklisted(x)]
@@ -314,13 +318,10 @@ class Network:
 		return list(self.ifaces.keys())
 
 	def getAdapterAttribute(self, iface, attribute):
-		print("Getting attribute ", attribute, " for adapter", iface)
-		if self.ifaces.get(iface, {}).get('up', False) and self.ifaces.get(iface, {}).get('ip', [0, 0, 0, 0]) == [0, 0, 0, 0]:
-			self.getAddrInet(iface, None)
 		return self.ifaces.get(iface, {}).get(attribute)
 
 	def setAdapterAttribute(self, iface, attribute, value):
-		print("setting for adapter", iface, "attribute", attribute, " to value", value)
+		print("[Network] setting for adapter", iface, "attribute", attribute, " to value", value)
 		if iface in self.ifaces:
 			self.ifaces[iface][attribute] = value
 
@@ -359,7 +360,7 @@ class Network:
 				self.commands.append("/sbin/ip addr flush dev " + iface + " scope global")
 		self.commands.append("/etc/init.d/networking stop")
 		self.commands.append("killall -9 udhcpc")
-		self.commands.append("rm /var/run/udhcpc*")
+		self.commands.append("rm -f /var/run/udhcpc*")
 		self.resetNetworkConsole.eBatch(self.commands, self.resetNetworkFinishedCB, [mode, callback], debug=True)
 
 	def resetNetworkFinishedCB(self, extra_args):
@@ -409,7 +410,7 @@ class Network:
 	def checkNetworkState(self, statecallback):
 		self.NetworkState = 0
 		self.pingConsole = Console()
-		for server in ("www.openpli.org", "www.google.nl", "www.google.com"):
+		for server in ("www.google.com", "www.bing.com", "www.microsoft.com"):
 			self.pingConsole.ePopen(("/bin/ping", "/bin/ping", "-c", "1", server), self.checkNetworkStateFinished, statecallback)
 
 	def checkNetworkStateFinished(self, result, retval, extra_args):
@@ -442,7 +443,10 @@ class Network:
 	def restartNetworkFinished(self, extra_args):
 		(callback) = extra_args
 		if callback is not None:
-			callback(True)
+			try:
+				callback(True)
+			except:
+				pass
 
 	def getLinkState(self, iface, callback):
 		self.linkConsole.ePopen((self.ethtool_bin, self.ethtool_bin, iface), self.getLinkStateFinished, callback)
@@ -476,12 +480,20 @@ class Network:
 		self.activateInterfaceConsole.killAll()
 
 	def checkforInterface(self, iface):
-		return self.getAdapterAttribute(iface, 'up')
+		if self.getAdapterAttribute(iface, 'up') is True:
+			return True
+		else:
+			ret = Console().ePopen(self.ifconfig_bin + " " + iface + " up")
+			Console().ePopen(self.ifconfig_bin + " " + iface + " down")
+			if ret == 0:
+				return True
+			else:
+				return False
 
 	def checkDNSLookup(self, statecallback):
 		self.DnsState = 0
 		self.dnsConsole = Console()
-		for server in ("www.openpli.org", "www.google.nl", "www.google.com"):
+		for server in ("www.google.com", "www.bing.com", "www.microsoft.com"):
 			self.dnsConsole.ePopen(("/usr/bin/nslookup", "/usr/bin/nslookup", server), self.checkDNSLookupFinished, statecallback)
 
 	def checkDNSLookupFinished(self, result, retval, extra_args):
@@ -541,7 +553,10 @@ class Network:
 		callback = extra_args
 		if not self.activateInterfaceConsole.appContainers:
 			if callback is not None:
-				callback(True)
+				try:
+					callback(True)
+				except:
+					pass
 
 	def sysfsPath(self, iface):
 		return '/sys/class/net/' + iface
@@ -556,6 +571,7 @@ class Network:
 		# r871x_usb_drv on kernel 2.6.12 is not identifiable over /sys/class/net/'ifacename'/wireless so look also inside /proc/net/wireless
 		device = re.compile('[a-z]{2,}[0-9]*:')
 		ifnames = []
+		print("[Network] Read /proc/net/wireless")
 		fp = open('/proc/net/wireless', 'r')
 		for line in fp:
 			try:
@@ -568,7 +584,10 @@ class Network:
 		return False
 
 	def getWlanModuleDir(self, iface=None):
-		devicedir = self.sysfsPath(iface) + '/device'
+		if self.sysfsPath(iface) == "/sys/class/net/wlan3" and os.path.exists("/tmp/bcm/%s" % iface):
+			devicedir = self.sysfsPath("sys0") + '/device'
+		else:
+			devicedir = self.sysfsPath(iface) + '/device'
 		if not os.path.isdir(devicedir):
 			return None
 		moduledir = devicedir + '/driver/module'
@@ -618,7 +637,7 @@ class Network:
 		cidr_range = range(0, 32)
 		cidr = int(nmask)
 		if cidr not in cidr_range:
-			print('cidr invalid: %d' % cidr)
+			print('[Network] cidr invalid: %str' % cidr)
 			return None
 		else:
 			nm = ((1 << cidr) - 1) << (32 - cidr)

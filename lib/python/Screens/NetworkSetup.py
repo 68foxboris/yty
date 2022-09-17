@@ -189,7 +189,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			try:
 				from Plugins.SystemPlugins.NetworkWizard.NetworkWizard import NetworkWizard
-			except ImportError:
+			except ImportError as e:
 				self.session.open(MessageBox, _("The network wizard extension is not installed!\nPlease install it."), type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				selection = self["list"].getCurrent()
@@ -203,7 +203,7 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		HelpableScreen.__init__(self)
 		self.setTitle(_("Configure nameservers"))
 		self.backupNameserverList = iNetwork.getNameserverList()[:]
-		print("backup-list:", self.backupNameserverList)
+		print("[NetworkSetup] backup-list:", self.backupNameserverList)
 
 		self["key_red"] = StaticText(_("Cancel"))
 		self["key_green"] = StaticText(_("Add"))
@@ -252,13 +252,10 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self.DNSEntry = getConfigListEntry(_("Nameserver configuration"), config.usage.dns)
 		self.list.append(self.DNSEntry)
 
-		try:
-			i = 1
-			for x in self.nameserverEntries:
-				self.list.append(getConfigListEntry(_("Nameserver %d") % (i), x))
-				i += 1
-		except:
-			pass
+		i = 1
+		for x in self.nameserverEntries:
+			self.list.append(getConfigListEntry(_("Nameserver %d") % (i), x))
+			i += 1
 
 		self["config"].list = self.list
 
@@ -283,7 +280,7 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self.createSetup()
 
 	def remove(self):
-		print("currentIndex:", self["config"].getCurrentIndex())
+		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
 		index = self["config"].getCurrentIndex()
 		if index < len(self.nameservers):
 			iNetwork.removeNameserver(self.nameservers[index])
@@ -737,7 +734,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 			if iNetwork.isWirelessInterface(self.iface):
 				try:
 					from Plugins.SystemPlugins.WirelessLan.plugin import WlanScan
-				except ImportError:
+				except ImportError as e:
 					self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 				else:
 					if self.queryWirelessDevice(self.iface):
@@ -753,7 +750,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		if self["menulist"].getCurrent()[1] == 'scanwlan':
 			try:
 				from Plugins.SystemPlugins.WirelessLan.plugin import WlanScan
-			except ImportError:
+			except ImportError as e:
 				self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				if self.queryWirelessDevice(self.iface):
@@ -763,7 +760,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		if self["menulist"].getCurrent()[1] == 'wlanstatus':
 			try:
 				from Plugins.SystemPlugins.WirelessLan.plugin import WlanStatus
-			except ImportError:
+			except ImportError as e:
 				self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				if self.queryWirelessDevice(self.iface):
@@ -878,7 +875,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 			if ret[0] == 'ok' and (iNetwork.isWirelessInterface(self.iface) and iNetwork.getAdapterAttribute(self.iface, "up")):
 				try:
 					from Plugins.SystemPlugins.WirelessLan.plugin import WlanStatus
-				except ImportError:
+				except ImportError as e:
 					self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 				else:
 					if self.queryWirelessDevice(self.iface):
@@ -946,7 +943,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		iNetwork.stopPingConsole()
 		try:
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
-		except ImportError:
+		except ImportError as e:
 			pass
 		else:
 			iStatus.stopWlanConsole()
@@ -1395,7 +1392,7 @@ class NetworkAdapterTest(Screen):
 		iNetwork.stopDNSConsole()
 		try:
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
-		except ImportError:
+		except ImportError as e:
 			pass
 		else:
 			iStatus.stopWlanConsole()
