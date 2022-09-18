@@ -1958,9 +1958,11 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 			})
 
 		self.startServiceRef = None
-
-		self.history = []
+		self.history_tv = []
+		self.history_radio = []
+		self.history = self.history_tv
 		self.history_pos = 0
+		self.delhistpoint = None
 
 		if config.servicelist.startupservice.value and config.servicelist.startuproot.value:
 			config.servicelist.lastmode.value = config.servicelist.startupmode.value
@@ -2031,6 +2033,7 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 	def setModeTv(self):
 		if self.revertMode is None:
 			self.revertMode = self.mode
+		self.history = self.history_tv
 		self.lastservice = config.tv.lastservice
 		self.lastroot = config.tv.lastroot
 		config.servicelist.lastmode.value = "tv"
@@ -2047,6 +2050,7 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 		if self.revertMode is None:
 			self.revertMode = self.mode
 		if config.usage.e1like_radio_mode.value:
+			self.history = self.history_radio
 			self.lastservice = config.radio.lastservice
 			self.lastroot = config.radio.lastroot
 			config.servicelist.lastmode.value = "radio"
@@ -2218,6 +2222,11 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 		return ret
 
 	def addToHistory(self, ref):
+		if self.delhistpoint is not None:
+			x = self.delhistpoint
+			while x <= len(self.history) - 1:
+				del self.history[x]
+		self.delhistpoint = None
 
 		if self.servicePath is not None:
 			tmp = self.servicePath[:]
@@ -2246,10 +2255,12 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 		if hlen > 1 and self.history_pos > 0:
 			self.history_pos -= 1
 			self.setHistoryPath()
+		self.delhistpoint = self.history_pos + 1
 
 	def historyNext(self):
+		self.delhistpoint = None
 		hlen = len(self.history)
-		if hlen > 1 and self.history_pos < (hlen - 1):
+		if hlen > 1 and self.history_pos < hlen - 1:
 			self.history_pos += 1
 			self.setHistoryPath()
 
@@ -2273,38 +2284,45 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 
 	def historyClear(self):
 		if self and self.servicelist:
-			for i in range(0, len(self.history)-1):
+			for i in list(range(0, len(self.history) - 1)):
 				del self.history[0]
-			self.history_pos = len(self.history)-1
+			self.history_pos = len(self.history) - 1
 			return True
 		return False
 
 	def historyZap(self, direction):
 		hlen = len(self.history)
-		if hlen < 1: return
+		if hlen < 1:
+			return
 		mark = self.history_pos
 		selpos = self.history_pos + direction
-		if selpos < 0: selpos = 0
-		if selpos > hlen-1: selpos = hlen-1
+		if selpos < 0:
+			selpos = 0
+		if selpos > hlen - 1:
+			selpos = hlen - 1
 		serviceHandler = eServiceCenter.getInstance()
-		historylist = [ ]
+		historylist = []
 		for x in self.history:
 			info = serviceHandler.info(x[-1])
-			if info: historylist.append((info.getName(x[-1]), x[-1]))
+			if info:
+				historylist.append((info.getName(x[-1]), x[-1]))
 		self.session.openWithCallback(self.historyMenuClosed, HistoryZapSelector, historylist, selpos, mark, invert_items=True, redirect_buttons=True, wrap_around=True)
 
 	def historyMenuClosed(self, retval):
-		if not retval: return
+		if not retval:
+			return
 		hlen = len(self.history)
 		pos = 0
 		for x in self.history:
-			if x[-1] == retval: break
+			if x[-1] == retval:
+				break
 			pos += 1
+		self.delhistpoint = pos + 1
 		if pos < hlen and pos != self.history_pos:
 			tmp = self.history[pos]
-			del self.history[pos]
-			self.history.append(tmp)
-			self.history_pos = len(self.history)-1
+			# self.history.append(tmp)
+			# del self.history[pos]
+			self.history_pos = pos
 			self.setHistoryPath()
 
 	def saveRoot(self):
