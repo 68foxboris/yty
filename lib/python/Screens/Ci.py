@@ -8,7 +8,7 @@ from Components.Label import Label
 from Components.config import config, ConfigSubsection, ConfigSelection, ConfigSubList, getConfigListEntry, KEY_LEFT, KEY_RIGHT, KEY_0, ConfigNothing, ConfigPIN, ConfigYesNo, NoSave
 from Components.ConfigList import ConfigList, ConfigListScreen
 from Components.SystemInfo import SystemInfo
-from enigma import eTimer, eDVBCI_UI, eDVBCIInterfaces
+from enigma import eTimer, eDVBCI_UI
 import Screens.Standby
 
 forceNotShowCiMessages = False
@@ -18,6 +18,7 @@ def setCIBitrate(configElement):
 
 def setCIEnabled(configElement):
 	eDVBCI_UI.getInstance().setEnabled(configElement.slotid, configElement.value)
+
 
 def setdvbCiDelay(configElement):
 	open(SystemInfo["CommonInterfaceCIDelay"], "w").write(configElement.value)
@@ -52,13 +53,17 @@ def InitCiConfig():
 		if SystemInfo["CommonInterfaceCIDelay"]:
 			config.cimisc.dvbCiDelay = ConfigSelection(default="256", choices=[("16", "16"), ("32", "32"), ("64", "64"), ("128", "128"), ("256", "256")])
 			config.cimisc.dvbCiDelay.addNotifier(setdvbCiDelay)
+		if SystemInfo["HaveCISSL"]:
+			config.cimisc.civersion = ConfigSelection(default="ciplus1", choices=[("auto", _("Auto")), ("ciplus1", _("CI Plus 1.2")), ("ciplus2", _("CI Plus 1.3")), ("legacy", _("CI Legacy"))])
+		else:
+			config.cimisc.civersion = ConfigSelection(default="auto", choices=[("auto", _("Auto")), ("ciplus1", _("CI Plus 1.2")), ("ciplus2", _("CI Plus 1.3")), ("legacy", _("CI Legacy"))])
 
 
 class MMIDialog(Screen):
 	def __init__(self, session, slotid, action, handler=eDVBCI_UI.getInstance(), wait_text="", screen_data=None):
 		Screen.__init__(self, session)
 
-		print("MMIDialog with action" + str(action))
+		print("[Ci] MMIDialog with action" + str(action))
 
 		self.mmiclosed = False
 		self.tag = None
@@ -133,9 +138,9 @@ class MMIDialog(Screen):
 		if not self.tag:
 			return
 		if self.tag == "WAIT":
-			print("do nothing - wait")
+			print("[Ci] do nothing - wait")
 		elif self.tag == "MENU":
-			print("answer MENU")
+			print("[Ci] answer MENU")
 			cur = self["entries"].getCurrent()
 			if cur:
 				self.handler.answerMenu(self.slotid, cur[2])
@@ -143,7 +148,7 @@ class MMIDialog(Screen):
 				self.handler.answerMenu(self.slotid, 0)
 			self.showWait()
 		elif self.tag == "LIST":
-			print("answer LIST")
+			print("[Ci] answer LIST")
 			self.handler.answerMenu(self.slotid, 0)
 			self.showWait()
 		elif self.tag == "ENQ":
@@ -186,15 +191,15 @@ class MMIDialog(Screen):
 			self.handler.stopMMI(self.slotid)
 			self.closeMmi()
 		elif self.tag in ("MENU", "LIST"):
-			print("cancel list")
+			print("[Ci] cancel list")
 			self.handler.answerMenu(self.slotid, 0)
 			self.showWait()
 		elif self.tag == "ENQ":
-			print("cancel enq")
+			print("[Ci] cancel enq")
 			self.handler.cancelEnq(self.slotid)
 			self.showWait()
 		else:
-			print("give cancel action to ci")
+			print("[Ci] give cancel action to ci")
 
 	def keyConfigEntry(self, key):
 		self.timer.stop()
@@ -324,7 +329,7 @@ class CiMessageHandler:
 			elif handler.availableMMI(slot) == 1:
 				if self.session:
 					show_ui = False
-					if config.ci[slot].show_ci_messages.value:
+					if config.ci[slot].show_ci_messages.value and config.misc.firstrun.value == 0:
 						show_ui = True
 					screen_data = handler.getMMIScreen(slot)
 					if config.ci[slot].use_static_pin.value:
@@ -410,7 +415,7 @@ class CiSelection(Screen):
 	def selectionChanged(self):
 		if self.slot > 1:
 			cur = self["entries"].getCurrent()
-			if cur and len(cur) > 2:
+			if cur and len(cur) > 2 and cur[0] != _("CI Operation Mode"):
 				self["text"].setText(cur[0] == "**************************" and " " or cur[0] == _("DVB CI Delay") and _("All slots") or _("Slot %d") % (cur[3] + 1))
 
 	def keyConfigEntry(self, key):
@@ -453,6 +458,10 @@ class CiSelection(Screen):
 			self.list.append(getConfigListEntry(_("PID Filtering"), config.ci[slot].relevantPidsRouting, 3, slot))
 		if SystemInfo["CommonInterfaceCIDelay"]:
 			self.list.append(getConfigListEntry(_("DVB CI Delay"), config.cimisc.dvbCiDelay, 3, slot))
+		if SystemInfo["HaveCISSL"]:
+			self.list.append(getConfigListEntry(_("CI Operation Mode"), config.cimisc.civersion, _("Choose the CI protocol operation mode for standard CI or CI Plus.")))
+		else:
+			self.list.append(getConfigListEntry(_("CI Operation Mode"), config.cimisc.civersion, _("Your hardware can detect CI mode itself or works only in legacy mode.")))
 
 	def updateState(self, slot):
 		self.list = []
