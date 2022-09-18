@@ -131,7 +131,7 @@ class MediaPlayer(Screen, InfoBarBase, InfoBarScreenSaver, InfoBarSeek, InfoBarA
 
 		# 'None' is magic to start at the list of mountpoints
 		defaultDir = config.mediaplayer.defaultDir.getValue()
-		self.filelist = FileList(defaultDir, matchingPattern="(?i)^.*\.(dts|mp3|wav|wave|wv|oga|ogg|flac|m4a|mp2|m2a|wma|ac3|mka|aac|ape|alac|mpg|vob|m4v|mkv|avi|divx|dat|flv|mp4|mov|wmv|asf|3gp|3g2|mpeg|mpe|rm|rmvb|ogm|ogv|m2ts|mts|ts|m3u|e2pls|pls|amr|au|mid|pva|wtv)", useServiceRef=True, additionalExtensions="4098:m3u 4098:e2pls 4098:pls")
+		self.filelist = FileList(defaultDir, matchingPattern="(?i)^.*\.(aac|ac3|alac|amr|ape|au|dts|flac|m2a|m4a|mid|mka|mp2|mp3|oga|ogg|wav|wave|wma|wv|m3u|pls|e2pls|3g2|3gp|asf|avi|av1|dat|divx|flv|m2ts|m4v|mkv|mov|mp4|mpe|mpeg|mpg|mpd|mts|ogm|ogv|pva|rm|rmvb|ts|vob|webm|wmv|wtv)", useServiceRef=True, additionalExtensions="4098:m3u 4098:e2pls 4098:pls")
 		self["filelist"] = self.filelist
 
 		self.playlist = MyPlayList()

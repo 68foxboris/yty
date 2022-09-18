@@ -14,10 +14,10 @@ from skin import parseScale
 
 from enigma import eListboxPythonMultiContent, eListbox, gFont, iServiceInformation, RT_HALIGN_LEFT, RT_HALIGN_RIGHT, eServiceReference, eServiceCenter, eTimer, RT_VALIGN_CENTER
 
-AUDIO_EXTENSIONS = frozenset((".dts", ".mp3", ".wav", ".wave", ".wv", ".oga", ".ogg", ".flac", ".m4a", ".mp2", ".m2a", ".wma", ".ac3", ".mka", ".aac", ".ape", ".alac", ".amr", ".au", ".mid"))
-DVD_EXTENSIONS = frozenset((".iso", ".img", ".nrg"))
-IMAGE_EXTENSIONS = frozenset((".jpg", ".png", ".gif", ".bmp", ".jpeg", ".jpe"))
-MOVIE_EXTENSIONS = frozenset((".mpg", ".vob", ".m4v", ".mkv", ".avi", ".divx", ".dat", ".flv", ".mp4", ".mov", ".wmv", ".asf", ".3gp", ".3g2", ".mpeg", ".mpe", ".rm", ".rmvb", ".ogm", ".ogv", ".m2ts", ".mts", ".webm", ".pva", ".wtv", ".ts"))
+AUDIO_EXTENSIONS = frozenset((".aac", ".ac3", ".alac", ".amr", ".ape", ".au", ".dts", ".flac", ".m2a", ".m4a", ".mid", ".mka", ".mp2", ".mp3", ".oga", ".ogg", ".wav", ".wave", ".wma", ".wv"))
+DVD_EXTENSIONS = ((".iso", ".img", ".nrg", ".ifo"))
+IMAGE_EXTENSIONS = frozenset((".bmp", ".gif", ".jpe", ".jpeg", ".jpg", ".png", ".svg"))
+MOVIE_EXTENSIONS = frozenset((".3g2", ".3gp", ".asf", ".avi", ".av1", ".dat", ".divx", ".flv", ".m2ts", ".m4v", ".mkv", ".mov", ".mp4", ".mpe", ".mpeg", ".mpg", ".mpd", ".mts", ".ogm", ".ogv", ".pva", ".rm", ".rmvb", ".ts", ".vob", ".webm", ".wmv", ".wtv"))
 KNOWN_EXTENSIONS = MOVIE_EXTENSIONS.union(IMAGE_EXTENSIONS, DVD_EXTENSIONS, AUDIO_EXTENSIONS)
 
 cutsParser = struct.Struct('>QI') # big-endian, 64-bit PTS and 32-bit type
