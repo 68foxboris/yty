@@ -377,6 +377,8 @@
 	<map context="InfobarAudioSelectionActions">
 		<key id="KEY_AUDIO" mapto="audioSelection" flags="m" />
 		<key id="KEY_YELLOW" mapto="audioSelection" flags="b" />
+		<key id="KEY_OPTION" mapto="audioSelection" flags="b" />
+		<key id="KEY_LANGUAGE" mapto="audioSelection" flags="m" />
 	</map>
 
 	<map context="InfobarAspectSelectionActions">
