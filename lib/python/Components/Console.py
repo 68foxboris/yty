@@ -55,9 +55,10 @@ class Console:
 		If binary data required class shoud be initialized with Console(binary=True)
 	"""
 	def __init__(self, binary=False):
-		# Still called appContainers because Network.py accesses it to
+		# Still called appContainers and appResults because Network.py accesses it to
 		# know if there's still stuff running
 		self.appContainers = {}
+		self.appResults = {}
 		self.binary = binary
 
 	def ePopen(self, cmd, callback=None, extra_args=[]):
