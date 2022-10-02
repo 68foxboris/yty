@@ -699,10 +699,19 @@ def mediafilesInUse(session):
 def shellquote(s):
 	return "'%s'" % s.replace("'", "'\\''")
 
+def isPluginInstalled(pluginName, pluginFile="plugin", pluginType=None):
+	types = ["Extensions", "SystemPlugins"]
+	if pluginType:
+		types = [pluginType]
+	extensions = ["c", ""]
+	for type in types:
+		for extension in extensions:
+			if isfile(pathjoin(defaultPaths[SCOPE_PLUGINS][0], type, pluginName, "%s.py%s" % (pluginFile, extension))):
+				return True
+	return False
 
 def sanitizeFilename(filename):
 	"""Return a fairly safe version of the filename.
-
 	We don't limit ourselves to ascii, because we want to keep municipality
 	names, etc, but we do want to get rid of anything potentially harmful,
 	and make sure we do not exceed Windows filename length limits.
