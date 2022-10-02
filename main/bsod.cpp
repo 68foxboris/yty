@@ -156,10 +156,16 @@ void bsodFatal(const char *component)
 	std::string crashlog_name;
 	std::ostringstream os;
 	std::ostringstream os_text;
-	os << getConfigString("config.crash.debugpath", "/home/root/logs/");
-	os << "enigma2_crash_";
-	os << time(0);
-	os << ".log";
+
+	char dated[22];
+	time_t now_time = time(0);
+	struct tm loctime;
+	localtime_r(&now_time, &loctime);
+	strftime (dated, 21, "%Y%m%d-%H%M%S", &loctime);
+
+	os << getConfigString("config.crash.debug_path", "/home/root/logs/");
+	os << dated;
+	os << "-enigma-crash.log";
 	crashlog_name = os.str();
 	f = fopen(crashlog_name.c_str(), "wb");
 
@@ -210,6 +216,8 @@ void bsodFatal(const char *component)
 		stringFromFile(f, "stbmodel", "/proc/stb/info/boxtype");
 		stringFromFile(f, "stbmodel", "/proc/stb/info/vumodel");
 		stringFromFile(f, "stbmodel", "/proc/stb/info/model");
+		stringFromFile(f, "stbmodel", "/proc/stb/info/hwmodel");
+		stringFromFile(f, "stbmodel", "/proc/stb/info/gbmodel");
 		stringFromFile(f, "kernelcmdline", "/proc/cmdline");
 		stringFromFile(f, "nimsockets", "/proc/bus/nim_sockets");
 		stringFromFile(f, "imageversion", "/etc/image-version");
@@ -242,7 +250,7 @@ void bsodFatal(const char *component)
 	gPainter p(my_dc);
 	p.resetOffset();
 	p.resetClip(eRect(ePoint(0, 0), my_dc->size()));
-	p.setBackgroundColor(gRGB(0x008000));
+	p.setBackgroundColor(gRGB(0x27408B));
 	p.setForegroundColor(gRGB(0xFFFFFF));
 
 	int hd =  my_dc->size().width() == 1920;

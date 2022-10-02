@@ -95,42 +95,62 @@ def setEPGCachePath(configElement):
 ####################################################
 
 profile("Twisted")
-try:
-	import twisted.python.runtime
-	twisted.python.runtime.platform.supportsThreads = lambda: True
-
-	import e2reactor
-	e2reactor.install()
-
+try:  # Configure the twisted processor
+	from twisted.python.runtime import platform
+	platform.supportsThreads = lambda: True
+	from e2reactor import install
+	install()
 	from twisted.internet import reactor
 
 	def runReactor():
 		reactor.run(installSignalHandlers=False)
+
 except ImportError:
-	print("[StartEnigma] Twisted not available")
+	print("[StartEnigma] Error: Twisted not available!")
 
 	def runReactor():
 		enigma.runMainloop()
 
-try:
-	from twisted.python import log
-	config.misc.enabletwistedlog = ConfigYesNo(default = False)
-	if config.misc.enabletwistedlog.value == True:
-		log.startLogging(open('/tmp/twisted.log', 'w'))
-	else:
-		log.startLogging(sys.stdout)
+try:  # Configure the twisted logging
+	from twisted.python import log, util
+
+	def quietEmit(self, eventDict):
+		text = log.textFromEventDict(eventDict)
+		if text is None:
+			return
+		if "/api/statusinfo" in text:  # do not log OWF statusinfo
+			return
+		# Log with time stamp.
+		#
+		# timeStr = self.formatTime(eventDict["time"])
+		# fmtDict = {
+		# 	"ts": timeStr,
+		# 	"system": eventDict["system"],
+		# 	"text": text.replace("\n", "\n\t")
+		# }
+		# msgStr = log._safeFormat("%(ts)s [%(system)s] %(text)s\n", fmtDict)
+		#
+		# Log without time stamp.
+		#
+		fmtDict = {
+			"text": text.replace("\n", "\n\t")
+		}
+		msgStr = log._safeFormat("%(text)s\n", fmtDict)
+		util.untilConcludes(self.write, msgStr)
+		util.untilConcludes(self.flush)
+
+	logger = log.FileLogObserver(stdout)
+	log.FileLogObserver.emit = quietEmit
+	stdoutBackup = sys.stdout  # Backup stdout and stderr redirections.
+	stderrBackup = sys.stderr
+	log.startLoggingWithObserver(logger.emit)
+	sys.stdout = stdoutBackup  # Restore stdout and stderr redirections because of twisted redirections.
+	sys.stderr = stderrBackup
+
 except ImportError:
-	print("twisted not available")
-	pass
+	print("[StartEnigma] Error: Twisted not available!")
 
 profile("LOAD:Plugin")
-
-from twisted.python import log
-config.misc.enabletwistedlog = ConfigYesNo(default=False)
-if config.misc.enabletwistedlog.value == True:
-	log.startLogging(open('/tmp/twisted.log', 'w'))
-else:
-	log.startLogging(sys.stdout)
 
 # initialize autorun plugins and plugin menu entries
 from Components.PluginComponent import plugins

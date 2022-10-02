@@ -150,11 +150,11 @@ void quitMainloop(int exitCode)
 		if (fd >= 0)
 		{
 			if (ioctl(fd, 10 /*FP_CLEAR_WAKEUP_TIMER*/) < 0)
-				eDebug("[quitMainloop] FP_CLEAR_WAKEUP_TIMER failed: %m");
+				eDebug("[Enigma] quitMainloop FP_CLEAR_WAKEUP_TIMER failed!  (%m)");
 			close(fd);
 		}
 		else
-			eDebug("[quitMainloop] open /dev/dbox/fp0 for wakeup timer clear failed: %m");
+			eDebug("[Enigma] quitMainloop open /dev/dbox/fp0 for wakeup timer clear failed!  (%m)");
 	}
 	exit_code = exitCode;
 	eApp->quit(0);
@@ -200,16 +200,17 @@ int main(int argc, char **argv)
 
 	// set pythonpath if unset
 	setenv("PYTHONPATH", eEnv::resolve("${libdir}/enigma2/python").c_str(), 0);
-	printf("PYTHONPATH: %s\n", getenv("PYTHONPATH"));
-	printf("DVB_API_VERSION %d DVB_API_VERSION_MINOR %d\n", DVB_API_VERSION, DVB_API_VERSION_MINOR);
 
 	// get enigma2 debug level settings
 	debugLvl = getenv("ENIGMA_DEBUG_LVL") ? atoi(getenv("ENIGMA_DEBUG_LVL")) : 4;
 	if (debugLvl < 0)
 		debugLvl = 0;
-	printf("ENIGMA_DEBUG_LVL=%d\n", debugLvl);
 	if (getenv("ENIGMA_DEBUG_TIME"))
 		setDebugTime(atoi(getenv("ENIGMA_DEBUG_TIME")));
+
+	eLog(0, "[Enigma] Python path is '%s'.", getenv("PYTHONPATH"));
+	eLog(0, "[Enigma] DVB API version %d, DVB API version minor %d.", DVB_API_VERSION, DVB_API_VERSION_MINOR);
+	eLog(0, "[Enigma] Enigma debug level %d.", debugLvl);
 
 	ePython python;
 	eMain main;
@@ -223,8 +224,8 @@ int main(int argc, char **argv)
 	gLCDDC::getInstance(my_lcd_dc);
 
 
-		/* ok, this is currently hardcoded for arabic. */
-			/* some characters are wrong in the regular font, force them to use the replacement font */
+	/* ok, this is currently hardcoded for arabic. */
+	/* some characters are wrong in the regular font, force them to use the replacement font */
 	for (int i = 0x60c; i <= 0x66d; ++i)
 		eTextPara::forceReplacementGlyph(i);
 	eTextPara::forceReplacementGlyph(0xfdf2);
@@ -239,7 +240,7 @@ int main(int argc, char **argv)
 
 /*	if (double_buffer)
 	{
-		eDebug("[MAIN] - double buffering found, enable buffered graphics mode.");
+		eDebug("[Enigma] Double buffering found, enable buffered graphics mode.");
 		dsk.setCompositionMode(eWidgetDesktop::cmBuffered);
 	} */
 
@@ -256,7 +257,7 @@ int main(int argc, char **argv)
 	dsk_lcd.setRedrawTask(main);
 
 
-	eDebug("[MAIN] Loading spinners...");
+	eDebug("[Enigma] Loading spinners...");
 
 	{
 		int i;
@@ -275,11 +276,11 @@ int main(int argc, char **argv)
 			loadImage(wait[i], rfilename.c_str());
 			if (!wait[i])
 			{
-				eDebug("[MAIN] failed to load %s: %m", rfilename.c_str());
+				eDebug("[Enigma] failed to load %s: %m", rfilename.c_str());
 				break;
 			}
 		}
-		eDebug("[MAIN] found %d spinner!", i);
+		eDebug("[Enigma] Found %d spinner!", i);
 		if (i)
 			my_dc->setSpinner(eRect(ePoint(100, 100), wait[0]->size()), wait, i);
 		else
@@ -290,7 +291,7 @@ int main(int argc, char **argv)
 
 	eRCInput::getInstance()->keyEvent.connect(sigc::ptr_fun(&keyEvent));
 
-	printf("[MAIN] executing main\n");
+	eDebug("[Enigma] Executing StartEnigma.py");
 
 	bsodCatchSignals();
 	catchTermSignal();
@@ -307,7 +308,7 @@ int main(int argc, char **argv)
 
 	if (exit_code == 5) /* python crash */
 	{
-		eDebug("[MAIN] (exit code 5)");
+		eDebug("[Enigma] Exit code 5!");
 		bsodFatal(0);
 	}
 
@@ -357,13 +358,13 @@ void dump_malloc_stats(void)
 #ifdef __GLIBC__
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 33)
 	struct mallinfo2 mi = mallinfo2();
-	eDebug("MALLOC: %zu total", mi.uordblks);
+	eDebug("[Enigma] MALLOC: %zu total", mi.uordblks);
 #else
 	struct mallinfo mi = mallinfo();
-	eDebug("MALLOC: %d total", mi.uordblks);
+	eDebug("[Enigma] MALLOC: %d total", mi.uordblks);
 #endif
 #else
-	eDebug("MALLOC: info not exposed");
+	eDebug("[Enigma] MALLOC: info not exposed");
 #endif
 }
 
