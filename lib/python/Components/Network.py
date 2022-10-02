@@ -2,10 +2,10 @@ import os
 import re
 import netifaces as ni
 from socket import *
-from enigma import eTimer
 from Components.Console import Console
 from Components.PluginComponent import plugins
 from Plugins.Plugin import PluginDescriptor
+from Components.config import config
 
 
 class Network:
@@ -15,8 +15,15 @@ class Network:
 		self.NetworkState = 0
 		self.DnsState = 0
 		self.nameservers = []
-		self.dhcpnameservers = []
 		self.ethtool_bin = "/usr/sbin/ethtool"
+		self.ip_bin = "/sbin/ip"
+		self.ifconfig_bin = "/sbin/ifconfig"
+		self.ifdown_bin = "/sbin/ifdown"
+		self.ifup_bin = "/sbin/ifup"
+		self.ping_bin = "/bin/ping"
+		self.nslookup_bin = "/usr/bin/nslookup"
+		self.avahi_daemon = "/etc/init.d/avahi-daemon"
+		self.networking_initd = "/etc/init.d/networking"
 		self.console = Console()
 		self.linkConsole = Console()
 		self.restartConsole = Console()
@@ -34,8 +41,8 @@ class Network:
 
 	def onRemoteRootFS(self):
 		if self.remoteRootFS is None:
-			from Components import Harddisk
-			for parts in Harddisk.getProcMounts():
+			from Components.Harddisk import getProcMounts
+			for parts in getProcMounts():
 				if parts[1] == '/' and parts[2] == 'nfs':
 					self.remoteRootFS = True
 					break
@@ -44,7 +51,7 @@ class Network:
 		return self.remoteRootFS
 
 	def isBlacklisted(self, iface):
-		return iface in ('lo', 'wifi0', 'wmaster0', 'sit0', 'tun0', 'sys0', 'p2p0', 'wg0')
+		return iface in ('lo', 'wifi0', 'wmaster0', 'sit0', 'tun0', 'sys0', 'p2p0', 'tap0', 'tunl0', 'ip6tnl0')
 
 	def getInterfaces(self, callback=None):
 		self.configuredInterfaces = []
@@ -67,10 +74,9 @@ class Network:
 	def getAddrInet(self, iface, callback):
 		data = {'up': False, 'dhcp': False, 'preup': False, 'predown': False}
 		try:
-			if os.path.exists('/sys/class/net/%s/operstate' % iface):
-				data['up'] = int(open('/sys/class/net/%s/flags' % iface).read().strip(), 16) & 1 == 1
-			if data['up'] and iface not in self.configuredInterfaces:
-				self.configuredInterfaces.append(iface)
+			print("[Network] Read /sys/class/net/%s/flags" % iface)
+			data['up'] = int(open('/sys/class/net/%s/flags' % iface).read().strip(), 16) & 1 == 1
+			self.configuredInterfaces.append(iface)
 			nit = ni.ifaddresses(iface)
 			data['ip'] = self.convertIP(nit[ni.AF_INET][0]['addr']) # ipv4
 			data['netmask'] = self.convertIP(nit[ni.AF_INET][0]['netmask'])
@@ -82,10 +88,7 @@ class Network:
 			data['ip'] = [0, 0, 0, 0]
 			data['netmask'] = [0, 0, 0, 0]
 			data['gateway'] = [0, 0, 0, 0]
-		if iface in self.ifaces:
-			self.ifaces[iface].update(data)
-		else:
-			self.ifaces[iface] = data
+		self.ifaces[iface] = data
 		self.loadNetworkConfig(iface, callback)
 
 	def writeNetworkConfig(self):
@@ -95,6 +98,12 @@ class Network:
 		fp.write("auto lo\n")
 		fp.write("iface lo inet loopback\n\n")
 		for ifacename, iface in self.ifaces.items():
+			if "dns-nameservers" in iface and iface['dns-nameservers']:
+				dns = []
+				for s in iface['dns-nameservers'].split()[1:]:
+					dns.append((self.convertIP(s)))
+				if dns:
+					self.nameservers = dns
 			if iface['up']:
 				fp.write("auto " + ifacename + "\n")
 				self.configuredInterfaces.append(ifacename)
@@ -116,21 +125,23 @@ class Network:
 			if iface["predown"] and "configStrings" not in iface:
 				fp.write(iface["predown"])
 			fp.write("\n")
-			for nameserver in self.nameservers:
-				fp.write("dns-nameserver %d.%d.%d.%d\n" % tuple(nameserver))
 		fp.close()
 		self.configuredNetworkAdapters = self.configuredInterfaces
 		self.writeNameserverConfig()
 
 	def writeNameserverConfig(self):
-		fp = open('/etc/resolv.conf', 'w')
-		for nameserver in self.nameservers:
-			if  nameserver != [0, 0, 0, 0]:
+		try:
+			fp = open('/etc/resolv.conf', 'w')
+			for nameserver in self.nameservers:
 				fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
-		for nameserver in self.dhcpnameservers:
-			if  nameserver != [0, 0, 0, 0]:
-				fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
-		fp.close()
+			fp.close()
+			if config.usage.dns.value.lower() not in ("dhcp-router", "custom"):
+				fp = open('/etc/enigma2/serverdns.conf', 'w')
+				for nameserver in self.nameservers:
+					fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
+				fp.close()
+		except Exception as err:
+			print("[Network] DNS %s" % err)
 
 	def loadNetworkConfig(self, iface, callback=None):
 		interfaces = []
@@ -140,22 +151,20 @@ class Network:
 			interfaces = fp.readlines()
 			fp.close()
 		except:
-			print("[Network.py] interfaces - opening failed")
+			print("[Network] interfaces - opening failed")
 
-		self.nameservers = []
 		ifaces = {}
 		currif = ""
 		for i in interfaces:
 			split = i.strip().split(' ')
 			if split[0] == "iface":
 				currif = split[1]
+				ifaces[currif] = {}
+				if len(split) == 4 and split[3] == "dhcp":
+					ifaces[currif]["dhcp"] = True
+				else:
+					ifaces[currif]["dhcp"] = False
 			if currif == iface: #read information only for available interfaces
-				if currif not in ifaces:
-					ifaces[currif] = {}
-					if len(split) == 4 and split[3] == "dhcp":
-						ifaces[currif]["dhcp"] = True
-					else:
-						ifaces[currif]["dhcp"] = False
 				if split[0] == "address":
 					ifaces[currif]["address"] = list(map(int, split[1].split('.')))
 					if "ip" in self.ifaces[currif]:
@@ -177,8 +186,6 @@ class Network:
 				if split[0] in ("pre-down", "post-down"):
 					if "predown" in self.ifaces[currif]:
 						self.ifaces[currif]["predown"] = i
-				if split[0] == "dns-nameserver":
-					self.nameservers.append(self.convertIP(split[1]))
 
 		for ifacename, iface in ifaces.items():
 			if ifacename in self.ifaces:
@@ -188,13 +195,15 @@ class Network:
 			self.configuredNetworkAdapters = self.configuredInterfaces
 			# load ns only once
 			self.loadNameserverConfig()
-			print("read configured interface:", ifaces)
+			if config.usage.dns.value.lower() not in ("dhcp-router", "custom"):
+				self.writeNameserverConfig()
+			print("[Network] read configured interface:", ifaces)
 			# remove any password before info is printed to the debug log
 			safe_ifaces = self.ifaces.copy()
 			for intf in safe_ifaces:
 				if 'preup' in safe_ifaces[intf] and safe_ifaces[intf]['preup']:
 					safe_ifaces[intf]['preup'] = re.sub(' -k "\S*" ', ' -k ********* ', safe_ifaces[intf]['preup'])
-			print("self.ifaces after loading:", safe_ifaces)
+			print("[Network] self.ifaces after loading:", safe_ifaces)
 			self.config_ready = True
 			self.msgPlugins()
 			if callback is not None:
@@ -205,23 +214,27 @@ class Network:
 		nameserverPattern = re.compile("nameserver +" + ipRegexp)
 		ipPattern = re.compile(ipRegexp)
 
-		self.dhcpnameservers = []
 		resolv = []
 		try:
-			fp = open('/etc/resolv.conf', 'r')
+			if config.usage.dns.value.lower() in ("dhcp-router", "custom"):
+				fp = open('/etc/resolv.conf', 'r')
+				if (os.path.isfile("/etc/enigma2/serverdns.conf")):
+					Console().ePopen('rm /etc/enigma2/serverdns.conf')
+			else:
+				fp = open('/etc/enigma2/serverdns.conf', 'r')
 			resolv = fp.readlines()
 			fp.close()
-		except:
-			print("[Network.py] resolv.conf - opening failed")
+			self.nameservers = []
+		except Exception as err:
+			print("[Network] DNS %s" % err)
 
 		for line in resolv:
 			if self.regExpMatch(nameserverPattern, line) is not None:
 				ip = self.regExpMatch(ipPattern, line)
-				if ip and ip not in self.nameservers:
-					self.dhcpnameservers.append(self.convertIP(ip))
+				if ip:
+					self.nameservers.append(self.convertIP(ip))
 
-		print("static nameservers:", self.nameservers)
-		print("dhcp nameservers:", self.dhcpnameservers)
+		print("[Network] nameservers:", self.nameservers)
 
 	def getInstalledAdapters(self):
 		return [x for x in os.listdir('/sys/class/net') if not self.isBlacklisted(x)]
@@ -308,13 +321,10 @@ class Network:
 		return list(self.ifaces.keys())
 
 	def getAdapterAttribute(self, iface, attribute):
-		print("Getting attribute ", attribute, " for adapter", iface)
-		if self.ifaces.get(iface, {}).get('up', False) and self.ifaces.get(iface, {}).get('ip', [0, 0, 0, 0]) == [0, 0, 0, 0]:
-			self.getAddrInet(iface, None)
 		return self.ifaces.get(iface, {}).get(attribute)
 
 	def setAdapterAttribute(self, iface, attribute, value):
-		print("setting for adapter", iface, "attribute", attribute, " to value", value)
+		print("[Network] setting for adapter", iface, "attribute", attribute, " to value", value)
 		if iface in self.ifaces:
 			self.ifaces[iface][attribute] = value
 
@@ -322,22 +332,17 @@ class Network:
 		if iface in self.ifaces and attribute in self.ifaces[iface]:
 			del self.ifaces[iface][attribute]
 
-	def getNameserverList(self, dhcp=False):
-		servers = self.nameservers[:]
-		if dhcp:
-			print("Requesting DHCP assigned nameservers")
-			servers.extend(self.dhcpnameservers)
-		if len(servers) < 2:
-			servers.extend([[0, 0, 0, 0], [0, 0, 0, 0]])
-		print ("Get nameserver list: ", servers)
-		return servers[0:2]
+	def getNameserverList(self):
+		if len(self.nameservers) == 0:
+			return [[0, 0, 0, 0], [0, 0, 0, 0]]
+		else:
+			return self.nameservers
 
 	def clearNameservers(self):
 		self.nameservers = []
 
 	def addNameserver(self, nameserver):
-		if nameserver != [0, 0, 0, 0] and nameserver not in self.nameservers and nameserver not in self.dhcpnameservers:
-			print("Adding nameserver: ", nameserver)
+		if nameserver not in self.nameservers:
 			self.nameservers.append(nameserver)
 
 	def removeNameserver(self, nameserver):
@@ -352,13 +357,13 @@ class Network:
 
 	def resetNetworkConfig(self, mode='lan', callback=None):
 		self.commands = []
-		self.commands.append("/etc/init.d/avahi-daemon stop")
+		self.commands.append(self.avahi_daemon + " stop")
 		for iface in self.ifaces.keys():
 			if iface != 'eth0' or not self.onRemoteRootFS():
-				self.commands.append("/sbin/ip addr flush dev " + iface + " scope global")
-		self.commands.append("/etc/init.d/networking stop")
+				self.commands.append(self.ip_bin + " addr flush dev " + iface + " scope global")
+		self.commands.append(self.networking_initd + " stop")
 		self.commands.append("killall -9 udhcpc")
-		self.commands.append("rm /var/run/udhcpc*")
+		self.commands.append("rm -f /var/run/udhcpc*")
 		self.resetNetworkConsole.eBatch(self.commands, self.resetNetworkFinishedCB, [mode, callback], debug=True)
 
 	def resetNetworkFinishedCB(self, extra_args):
@@ -385,18 +390,18 @@ class Network:
 
 		self.commands = []
 		if mode == 'wlan':
-			self.commands.append("/sbin/ifconfig eth0 down")
-			self.commands.append("/sbin/ifconfig ath0 down")
-			self.commands.append("/sbin/ifconfig wlan0 up")
+			self.commands.append(self.ifconfig_bin + " eth0 down")
+			self.commands.append(self.ifconfig_bin + " ath0 down")
+			self.commands.append(self.ifconfig_bin + " wlan0 up")
 		if mode == 'wlan-mpci':
-			self.commands.append("/sbin/ifconfig eth0 down")
-			self.commands.append("/sbin/ifconfig wlan0 down")
-			self.commands.append("/sbin/ifconfig ath0 up")
+			self.commands.append(self.ifconfig_bin + " eth0 down")
+			self.commands.append(self.ifconfig_bin + " wlan0 down")
+			self.commands.append(self.ifconfig_bin + " ath0 up")
 		if mode == 'lan':
-			self.commands.append("/sbin/ifconfig eth0 up")
-			self.commands.append("/sbin/ifconfig wlan0 down")
-			self.commands.append("/sbin/ifconfig ath0 down")
-		self.commands.append("/etc/init.d/avahi-daemon start")
+			self.commands.append(self.ifconfig_bin + " eth0 up")
+			self.commands.append(self.ifconfig_bin + " wlan0 down")
+			self.commands.append(self.ifconfig_bin + " ath0 down")
+		self.commands.append(self.avahi_daemon + " start")
 		self.resetNetworkConsole.eBatch(self.commands, self.resetNetworkFinished, [mode, callback], debug=True)
 
 	def resetNetworkFinished(self, extra_args):
@@ -408,8 +413,8 @@ class Network:
 	def checkNetworkState(self, statecallback):
 		self.NetworkState = 0
 		self.pingConsole = Console()
-		for server in ("www.openpli.org", "www.google.nl", "www.google.com"):
-			self.pingConsole.ePopen(("/bin/ping", "/bin/ping", "-c", "1", server), self.checkNetworkStateFinished, statecallback)
+		for server in ("www.google.com", "www.bing.com", "www.microsoft.com"):
+			self.pingConsole.ePopen((self.ping_bin, self.ping_bin, "-c", "1", server), self.checkNetworkStateFinished, statecallback)
 
 	def checkNetworkStateFinished(self, result, retval, extra_args):
 		(statecallback) = extra_args
@@ -426,22 +431,25 @@ class Network:
 		self.config_ready = False
 		self.msgPlugins()
 		self.commands = []
-		self.commands.append("/etc/init.d/avahi-daemon stop")
+		self.commands.append(self.avahi_daemon + " stop")
 		for iface in self.ifaces.keys():
 			if iface != 'eth0' or not self.onRemoteRootFS():
-				self.commands.append(("/sbin/ifdown", "/sbin/ifdown", iface))
-				self.commands.append("/sbin/ip addr flush dev " + iface + " scope global")
-		self.commands.append("/etc/init.d/networking stop")
+				self.commands.append((self.ifdown_bin, self.ifdown_bin, iface))
+				self.commands.append(self.ip_bin + " addr flush dev " + iface + " scope global")
+		self.commands.append(self.networking_initd + " stop")
 		self.commands.append("killall -9 udhcpc")
-		self.commands.append("rm /var/run/udhcpc*")
-		self.commands.append("/etc/init.d/networking start")
-		self.commands.append("/etc/init.d/avahi-daemon start")
+		self.commands.append("rm -f /var/run/udhcpc*")
+		self.commands.append(self.networking_initd + " start")
+		self.commands.append(self.avahi_daemon + " start")
 		self.restartConsole.eBatch(self.commands, self.restartNetworkFinished, callback, debug=True)
 
 	def restartNetworkFinished(self, extra_args):
 		(callback) = extra_args
 		if callback is not None:
-			callback(True)
+			try:
+				callback(True)
+			except:
+				pass
 
 	def getLinkState(self, iface, callback):
 		self.linkConsole.ePopen((self.ethtool_bin, self.ethtool_bin, iface), self.getLinkStateFinished, callback)
@@ -475,13 +483,21 @@ class Network:
 		self.activateInterfaceConsole.killAll()
 
 	def checkforInterface(self, iface):
-		return self.getAdapterAttribute(iface, 'up')
+		if self.getAdapterAttribute(iface, 'up') is True:
+			return True
+		else:
+			ret = Console().ePopen(self.ifconfig_bin + " " + iface + " up")
+			Console().ePopen(self.ifconfig_bin + " " + iface + " down")
+			if ret == 0:
+				return True
+			else:
+				return False
 
 	def checkDNSLookup(self, statecallback):
 		self.DnsState = 0
 		self.dnsConsole = Console()
-		for server in ("www.openpli.org", "www.google.nl", "www.google.com"):
-			self.dnsConsole.ePopen(("/usr/bin/nslookup", "/usr/bin/nslookup", server), self.checkDNSLookupFinished, statecallback)
+		for server in ("www.google.com", "www.bing.com", "www.microsoft.com"):
+			self.dnsConsole.ePopen((self.nslookup_bin, self.nslookup_bin, server), self.checkDNSLookupFinished, statecallback)
 
 	def checkDNSLookupFinished(self, result, retval, extra_args):
 		(statecallback) = extra_args
@@ -500,8 +516,8 @@ class Network:
 		commands = []
 
 		def buildCommands(iface):
-			commands.append(("/sbin/ifdown", "/sbin/ifdown", "-f", iface))
-			commands.append(("/sbin/ip", "/sbin/ip", "addr", "flush", "dev", iface, "scope", "global"))
+			commands.append((self.ifdown_bin, self.ifdown_bin, "-f", iface))
+			commands.append((self.ip_bin, self.ip_bin, "addr", "flush", "dev", iface, "scope", "global"))
 			#wpa_supplicant sometimes doesn't quit properly on SIGTERM
 			if os.path.exists('/var/run/wpa_supplicant/' + iface):
 				commands.append("wpa_cli -i" + iface + " terminate")
@@ -533,14 +549,17 @@ class Network:
 				callback(True)
 			return
 		commands = []
-		commands.append(("/sbin/ifup", "/sbin/ifup", iface))
+		commands.append((self.ifup_bin, self.ifup_bin, iface))
 		self.activateInterfaceConsole.eBatch(commands, self.activateInterfaceFinished, callback, debug=True)
 
 	def activateInterfaceFinished(self, extra_args):
 		callback = extra_args
 		if not self.activateInterfaceConsole.appContainers:
 			if callback is not None:
-				callback(True)
+				try:
+					callback(True)
+				except:
+					pass
 
 	def sysfsPath(self, iface):
 		return '/sys/class/net/' + iface
@@ -555,6 +574,7 @@ class Network:
 		# r871x_usb_drv on kernel 2.6.12 is not identifiable over /sys/class/net/'ifacename'/wireless so look also inside /proc/net/wireless
 		device = re.compile('[a-z]{2,}[0-9]*:')
 		ifnames = []
+		print("[Network] Read /proc/net/wireless")
 		fp = open('/proc/net/wireless', 'r')
 		for line in fp:
 			try:
@@ -567,7 +587,10 @@ class Network:
 		return False
 
 	def getWlanModuleDir(self, iface=None):
-		devicedir = self.sysfsPath(iface) + '/device'
+		if self.sysfsPath(iface) == "/sys/class/net/wlan3" and os.path.exists("/tmp/bcm/%s" % iface):
+			devicedir = self.sysfsPath("sys0") + '/device'
+		else:
+			devicedir = self.sysfsPath(iface) + '/device'
 		if not os.path.isdir(devicedir):
 			return None
 		moduledir = devicedir + '/driver/module'
@@ -575,17 +598,19 @@ class Network:
 			return moduledir
 
 		# identification is not possible over default moduledir
-		for x in os.listdir(devicedir):
-			# rt3070 on kernel 2.6.18 registers wireless devices as usb_device (e.g. 1-1.3:1.0) and identification is only possible over /sys/class/net/'ifacename'/device/1-xxx
-			if x.startswith("1-"):
-				moduledir = devicedir + '/' + x + '/driver/module'
-				if os.path.isdir(moduledir):
-					return moduledir
-		# rt73, zd1211b, r871x_usb_drv on kernel 2.6.12 can be identified over /sys/class/net/'ifacename'/device/driver, so look also here
-		moduledir = devicedir + '/driver'
-		if os.path.isdir(moduledir):
-			return moduledir
-
+		try:
+			for x in os.listdir(devicedir):
+				# rt3070 on kernel 2.6.18 registers wireless devices as usb_device (e.g. 1-1.3:1.0) and identification is only possible over /sys/class/net/'ifacename'/device/1-xxx
+				if x.startswith("1-"):
+					moduledir = devicedir + '/' + x + '/driver/module'
+					if os.path.isdir(moduledir):
+						return moduledir
+			# rt73, zd1211b, r871x_usb_drv on kernel 2.6.12 can be identified over /sys/class/net/'ifacename'/device/driver, so look also here
+			moduledir = devicedir + '/driver'
+			if os.path.isdir(moduledir):
+				return moduledir
+		except:
+			pass
 		return None
 
 	def detectWlanModule(self, iface=None):
@@ -601,7 +626,7 @@ class Network:
 			module = os.path.basename(os.path.realpath(moduledir))
 			if module in ('ath_pci', 'ath5k'):
 				return 'madwifi'
-			if module in ('rt73', 'rt73'):
+			if module == 'rt73':
 				return 'ralink'
 			if module == 'zd1211b':
 				return 'zydas'
@@ -617,7 +642,7 @@ class Network:
 		cidr_range = range(0, 32)
 		cidr = int(nmask)
 		if cidr not in cidr_range:
-			print('cidr invalid: %d' % cidr)
+			print('[Network] cidr invalid: %str' % cidr)
 			return None
 		else:
 			nm = ((1 << cidr) - 1) << (32 - cidr)
@@ -627,7 +652,12 @@ class Network:
 	def msgPlugins(self):
 		if self.config_ready is not None:
 			for p in plugins.getPlugins(PluginDescriptor.WHERE_NETWORKCONFIG_READ):
-				p(reason=self.config_ready)
+				try:
+					p.fnc(reason=self.config_ready)
+				except:
+					print("[Network] Plugin caused exception at WHERE_NETWORKCONFIG_READ")
+					import traceback
+					traceback.print_exc()
 
 	def hotplug(self, event):
 		interface = event['INTERFACE']
@@ -648,31 +678,5 @@ class Network:
 iNetwork = Network()
 
 
-class NetworkCheck:
-	def __init__(self):
-		self.Timer = eTimer()
-		self.Timer.callback.append(self.startCheckNetwork)
-
-	def startCheckNetwork(self):
-		self.Timer.stop()
-		if self.Retry > 0:
-			try:
-				gws = ni.gateways()
-				if 'default' in gws and len(gws['default']) > 0:
-					print("[NetworkCheck] CheckNetwork - Done - Reload interface data")
-					iNetwork.getInterfaces()
-					return
-				self.Retry = self.Retry - 1
-				self.Timer.start(1000, True)
-			except Exception as e:
-				print("[NetworkCheck] CheckNetwork - Error: %s" % str(e))
-
-	def Start(self):
-		self.Retry = 30
-		self.Timer.start(1000, True)
-
-
 def InitNetwork():
-	global networkCheck
-	networkCheck = NetworkCheck()
-	networkCheck.Start()
+	pass

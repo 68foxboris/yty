@@ -16,7 +16,8 @@ from Components.ActionMap import ActionMap, NumberActionMap, HelpableActionMap
 from Tools.Directories import resolveFilename, SCOPE_PLUGINS, SCOPE_CURRENT_SKIN
 from Tools.LoadPixmap import LoadPixmap
 from Plugins.Plugin import PluginDescriptor
-from enigma import eTimer
+from enigma import eTimer, eConsoleAppContainer
+from Components.Console import Console
 
 
 class NetworkAdapterSelection(Screen, HelpableScreen):
@@ -86,7 +87,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			interfacepng = LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, icon))
 
 		num_configured_if = len(iNetwork.getConfiguredAdapters())
-		if num_configured_if >= 2:
+		if num_configured_if:
 			icon = "buttons/button_blue.png" if default else "buttons/button_blue_off.png"
 			defaultpng = LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, icon))
 		icon = "icons/lock_on.png" if active else "icons/lock_error.png"
@@ -94,7 +95,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 
 		description = iNetwork.getFriendlyAdapterDescription(iface)
 
-		return((iface, name, description, interfacepng, defaultpng, activepng, divpng))
+		return ((iface, name, description, interfacepng, defaultpng, activepng, divpng))
 
 	def updateList(self):
 		self.list = []
@@ -189,7 +190,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			try:
 				from Plugins.SystemPlugins.NetworkWizard.NetworkWizard import NetworkWizard
-			except ImportError:
+			except ImportError as e:
 				self.session.open(MessageBox, _("The network wizard extension is not installed!\nPlease install it."), type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				selection = self["list"].getCurrent()
@@ -236,10 +237,21 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 
 	def createConfig(self):
 		self.nameservers = iNetwork.getNameserverList()
-		self.nameserverEntries = [NoSave(ConfigIP(default=nameserver)) for nameserver in self.nameservers]
+		if config.usage.dns.value == 'google':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[8, 8, 8, 8])), NoSave(ConfigIP(default=[8, 8, 4, 4]))]
+		elif config.usage.dns.value == 'cloudflare':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[1, 1, 1, 1])), NoSave(ConfigIP(default=[1, 0, 0, 1]))]
+		elif config.usage.dns.value == 'opendns-familyshield':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[208, 67, 222, 123])), NoSave(ConfigIP(default=[208, 67, 220, 123]))]
+		elif config.usage.dns.value == 'opendns-home':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[208, 67, 222, 222])), NoSave(ConfigIP(default=[208, 67, 220, 220]))]
+		elif config.usage.dns.value == 'custom' or config.usage.dns.value == 'dhcp-router':
+			self.nameserverEntries = [NoSave(ConfigIP(default=nameserver)) for nameserver in self.nameservers]
 
 	def createSetup(self):
 		self.list = []
+		self.DNSEntry = getConfigListEntry(_("Nameserver configuration"), config.usage.dns)
+		self.list.append(self.DNSEntry)
 
 		i = 1
 		for x in self.nameserverEntries:
@@ -249,20 +261,18 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self["config"].list = self.list
 
 	def ok(self):
+		self.RefreshNameServerUsed()
 		iNetwork.clearNameservers()
 		for nameserver in self.nameserverEntries:
 			iNetwork.addNameserver(nameserver.value)
-		iNetwork.writeNetworkConfig()
+		iNetwork.writeNameserverConfig()
+		config.usage.dns.save()
 		self.close()
 
 	def run(self):
 		self.ok()
 
 	def cancel(self):
-		iNetwork.clearNameservers()
-		print("restore backup-list:", self.backupNameserverList)
-		for nameserver in self.backupNameserverList:
-			iNetwork.addNameserver(nameserver)
 		self.close()
 
 	def add(self):
@@ -275,6 +285,13 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		index = self["config"].getCurrentIndex()
 		if index < len(self.nameservers):
 			iNetwork.removeNameserver(self.nameservers[index])
+			self.createConfig()
+			self.createSetup()
+
+	def RefreshNameServerUsed(self):
+		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
+		index = self["config"].getCurrentIndex()
+		if index < len(self.nameservers):
 			self.createConfig()
 			self.createSetup()
 
@@ -425,7 +442,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			self.dhcpdefault = False
 		self.hasGatewayConfigEntry = NoSave(ConfigYesNo(default=self.dhcpdefault or False))
 		self.gatewayConfigEntry = NoSave(ConfigIP(default=iNetwork.getAdapterAttribute(self.iface, "gateway") or [0, 0, 0, 0]))
-		nameserver = (iNetwork.getNameserverList(dhcp=True) + [[0, 0, 0, 0]] * 2)[0:2]
+		nameserver = (iNetwork.getNameserverList() + [[0, 0, 0, 0]] * 2)[0:2]
 		self.primaryDNS = NoSave(ConfigIP(default=nameserver[0]))
 		self.secondaryDNS = NoSave(ConfigIP(default=nameserver[1]))
 
@@ -644,6 +661,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		self.restartLanRef = None
 		self.LinkState = None
 		self.mainmenu = self.genMainMenu()
+		self.Console = Console()
 		self["menulist"] = MenuList(self.mainmenu)
 		self["key_red"] = StaticText(_("Close"))
 		self["description"] = StaticText()
@@ -652,6 +670,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		self["Statustext"] = StaticText()
 		self["statuspic"] = MultiPixmap()
 		self["statuspic"].hide()
+		self["devicepic"] = MultiPixmap()
 
 		self.oktext = _("Press OK on your remote control to continue.")
 		self.reboottext = _("Your receiver will restart after pressing OK on your remote control.")
@@ -718,7 +737,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 			if iNetwork.isWirelessInterface(self.iface):
 				try:
 					from Plugins.SystemPlugins.WirelessLan.plugin import WlanScan
-				except ImportError:
+				except ImportError as e:
 					self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 				else:
 					if self.queryWirelessDevice(self.iface):
@@ -734,7 +753,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		if self["menulist"].getCurrent()[1] == 'scanwlan':
 			try:
 				from Plugins.SystemPlugins.WirelessLan.plugin import WlanScan
-			except ImportError:
+			except ImportError as e:
 				self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				if self.queryWirelessDevice(self.iface):
@@ -744,7 +763,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		if self["menulist"].getCurrent()[1] == 'wlanstatus':
 			try:
 				from Plugins.SystemPlugins.WirelessLan.plugin import WlanStatus
-			except ImportError:
+			except ImportError as e:
 				self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				if self.queryWirelessDevice(self.iface):
@@ -807,6 +826,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		self["Statustext"].setText(_("Link:"))
 
 		if iNetwork.isWirelessInterface(self.iface):
+			self["devicepic"].setPixmapNum(1)
 			try:
 				from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
 			except:
@@ -816,6 +836,8 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 				iStatus.getDataForInterface(self.iface, self.getInfoCB)
 		else:
 			iNetwork.getLinkState(self.iface, self.dataAvail)
+			self["devicepic"].setPixmapNum(0)
+		self["devicepic"].show()
 
 	def doNothing(self):
 		pass
@@ -859,7 +881,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 			if ret[0] == 'ok' and (iNetwork.isWirelessInterface(self.iface) and iNetwork.getAdapterAttribute(self.iface, "up")):
 				try:
 					from Plugins.SystemPlugins.WirelessLan.plugin import WlanStatus
-				except ImportError:
+				except ImportError as e:
 					self.session.open(MessageBox, self.missingwlanplugintxt, type=MessageBox.TYPE_INFO, timeout=10)
 				else:
 					if self.queryWirelessDevice(self.iface):
@@ -928,7 +950,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		iNetwork.stopPingConsole()
 		try:
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
-		except ImportError:
+		except ImportError as e:
 			pass
 		else:
 			iStatus.stopWlanConsole()
@@ -1377,7 +1399,7 @@ class NetworkAdapterTest(Screen):
 		iNetwork.stopDNSConsole()
 		try:
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
-		except ImportError:
+		except ImportError as e:
 			pass
 		else:
 			iStatus.stopWlanConsole()

@@ -254,6 +254,7 @@
 		<widget source="IF" render="Label" position="645,600" size="400,25" zPosition="10" font="Regular;20" halign="left" transparent="1" foregroundColor="grey"/>
 		<widget source="Statustext" render="Label" position="520,630" size="115,25" zPosition="10" font="Regular;20" halign="right" transparent="1" foregroundColor="grey"/>
 		<widget name="statuspic" pixmaps="buttons/button_green.png,buttons/button_green_off.png" position="645,635" zPosition="10" size="15,16" transparent="1" alphatest="on"/>
+		<widget name="devicepic" pixmaps="buttons/button_green.png,buttons/button_green_off.png" position="645,635" zPosition="10" size="15,16" transparent="1" alphatest="on"/>
 	</screen>
 	<!-- Devices -->
 	<screen name="Devices" position="fill" flags="wfNoBorder">
