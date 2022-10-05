@@ -263,7 +263,7 @@ class Harddisk:
 			# not mounted, return OK
 			return 0
 		cmd = 'umount ' + dev
-		print("[Harddisk]", cmd)
+		print("[Harddisk] Command: '%s'." % cmd)
 		res = os.system(cmd)
 		return (res >> 8)
 
@@ -331,9 +331,10 @@ class Harddisk:
 		os.mkdir(os.path.join(self.mount_path, 'movie'))
 
 	def createInitializeJob(self):
+		print("[Harddisk] Initializing storage device...")
 		job = Task.Job(_("Initializing storage device..."))
 		size = self.diskSize()
-		print("[HD] size: %s MB" % size)
+		print("[Harddisk] size: %s MB" % size)
 
 		task = UnmountTask(job, self)
 
@@ -359,7 +360,7 @@ class Harddisk:
 				use_parted = True
 			else:
 				use_parted = False
-
+		print("[Harddisk] Creating partition.")
 		task = Task.LoggingTask(job, _("Creating partition"))
 		task.weighting = 5
 		if use_parted:
@@ -382,7 +383,7 @@ class Harddisk:
 			task.args.append(self.disk_path)
 			if size > 128000:
 				# Start at sector 8 to better support 4k aligned disks
-				print("[HD] Detected >128GB disk, using 4k alignment")
+				print("[Harddisk] Detected >128GB disk, using 4k alignment")
 				task.initial_input = "8,,L\n;0,0\n;0,0\n;0,0\ny\n"
 			else:
 				# Smaller disks (CF cards, sticks etc) don't need that
@@ -406,7 +407,7 @@ class Harddisk:
 						task.args += ["-C", "262144"]
 						big_o_options.append("bigalloc")
 				except Exception as ex:
-					print("Failed to detect Linux version:", ex)
+					print("[Harddisk] Error: Failed to detect Linux version:", ex)
 		else:
 			task.setTool("mkfs.ext3")
 		if size > 250000:
@@ -689,7 +690,7 @@ class HarddiskManager:
 		return error, blacklisted, removable, is_cdrom, partitions, medium_found
 
 	def enumerateBlockDevices(self):
-		print("[Harddisk] enumerating block devices...")
+		print("[Harddisk] Enumerating block devices...")
 		for blockdev in os.listdir("/sys/block"):
 			error, blacklisted, removable, is_cdrom, partitions, medium_found = self.addHotplugPartition(blockdev)
 			if not error and not blacklisted and medium_found:
@@ -719,7 +720,7 @@ class HarddiskManager:
 				physdev = os.path.realpath('/sys/block/' + dev + '/device')[4:]
 			except OSError:
 				physdev = dev
-				print("couldn't determine blockdev physdev for device", device)
+				print("[Harddisk] Error %d: Couldn't determine blockdev physdev for device", device)
 		error, blacklisted, removable, is_cdrom, partitions, medium_found = self.getBlockDevInfo(device)
 		if not blacklisted and medium_found:
 			description = self.getUserfriendlyDeviceName(device, physdev)
@@ -744,7 +745,7 @@ class HarddiskManager:
 				physdev = os.path.realpath('/sys/block/' + dev + '/device')[4:]
 			except OSError:
 				physdev = dev
-				print("couldn't determine blockdev physdev for device", device)
+				print("[Harddisk] Error %d: Couldn't determine blockdev physdev for device", device)
 		error, blacklisted, removable, is_cdrom, partitions, medium_found = self.getBlockDevInfo(device)
 		if not blacklisted and medium_found:
 			description = self.getUserfriendlyDeviceName(device, physdev)
@@ -815,7 +816,7 @@ class HarddiskManager:
 		try:
 			description = readFile("/sys" + phys + "/model")
 		except IOError as s:
-			print("couldn't read model: ", s)
+			print("[Harddisk] couldn't read model: ", s)
 		# not wholedisk and not partition 1
 		if part and part != 1:
 			description += _(" (Partition %d)") % part
@@ -844,7 +845,7 @@ class HarddiskManager:
 			ioctl(cd.fileno(), ioctl_flag, speed)
 			cd.close()
 		except Exception as ex:
-			print("[Harddisk] Failed to set %s speed to %s" % (device, speed), ex)
+			print("[Harddisk] Error %s: Failed to set %s speed to %s" % (device, speed), ex)
 
 
 class UnmountTask(Task.LoggingTask):
@@ -858,7 +859,7 @@ class UnmountTask(Task.LoggingTask):
 			dev = self.hdd.disk_path.split('/')[-1]
 			open('/dev/nomount.%s' % dev, "wb").close()
 		except Exception as e:
-			print("ERROR: Failed to create /dev/nomount file:", e)
+			print("[Harddisk] Error %d: UnmountTask failed to create /dev/nomount file:", e)
 		self.setTool('umount')
 		self.args.append('-f')
 		for dev in self.hdd.enumMountDevices():
@@ -866,7 +867,7 @@ class UnmountTask(Task.LoggingTask):
 			self.postconditions.append(Task.ReturncodePostcondition())
 			self.mountpoints.append(dev)
 		if not self.mountpoints:
-			print("UnmountTask: No mountpoints found?")
+			print("[Harddisk] UnmountTask: No mountpoints found?")
 			self.cmd = 'true'
 			self.args = [self.cmd]
 
@@ -875,7 +876,7 @@ class UnmountTask(Task.LoggingTask):
 			try:
 				os.rmdir(path)
 			except Exception as ex:
-				print("Failed to remove path '%s':" % path, ex)
+				print("[Harddisk] Error %d: UnmountTask failed to remove path '%s':" % path, ex)
 
 
 class MountTask(Task.LoggingTask):
@@ -888,7 +889,7 @@ class MountTask(Task.LoggingTask):
 			dev = self.hdd.disk_path.split('/')[-1]
 			os.unlink('/dev/nomount.%s' % dev)
 		except Exception as e:
-			print("ERROR: Failed to remove /dev/nomount file:", e)
+			print("[Harddisk] Error %d: MountTask failed to remove /dev/nomount file:", e)
 		# try mounting through fstab first
 		if self.hdd.mount_device is None:
 			dev = self.hdd.partitionPath("1")
@@ -934,7 +935,7 @@ class MkfsTask(Task.LoggingTask):
 						d[1] = d[1].split('\x08', 1)[0]
 					self.setProgress(80 * int(d[0]) / int(d[1]))
 				except Exception as e:
-					print("[Mkfs] E:", e)
+					print("[Harddisk] MkfsTask - [Mkfs] Error: %s" % err)
 				return # don't log the progess
 		self.log.append(data)
 

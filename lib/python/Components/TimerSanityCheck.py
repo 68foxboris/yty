@@ -217,7 +217,7 @@ class TimerSanityCheck:
 					fakeRecResult = -1
 				# TODO
 				#if fakeRecResult == -6 and len(NavigationInstance.instance.getRecordings(True)) < 2:
-				#	print "[TimerSanityCheck] less than two timers in the simulated recording list - timer conflict is not plausible - ignored !"
+				#	print("[TimerSanityCheck] less than two timers in the simulated recording list - timer conflict is not plausible - ignored !")
 				#	fakeRecResult = 0
 				if not fakeRecResult: # tune okay
 					if hasattr(fakeRecService, 'frontendInfo'):

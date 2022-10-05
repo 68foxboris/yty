@@ -242,7 +242,7 @@ class Menu(Screen, ProtectedScreen):
 				if screen is None:
 					screen = module
 
-				# print module, screen
+				# print(module, screen)
 				if module:
 					module = "Screens." + module
 				else:

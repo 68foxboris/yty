@@ -108,6 +108,7 @@ class AutoInstallWizard(Screen):
 		self.package = None
 
 		import glob
+		print("[StartWizard] Read /sys/class/net/eth0/address")
 		mac_address = open('/sys/class/net/eth0/address', 'r').readline().strip().replace(":", "")
 		autoinstallfiles = glob.glob('/media/*/backup/autoinstall%s' % mac_address) + glob.glob('/media/net/*/backup/autoinstall%s' % mac_address)
 		if not autoinstallfiles:
@@ -127,9 +128,10 @@ class AutoInstallWizard(Screen):
 	def run_console(self):
 		self["progress"].setValue(100 * (self.number_of_packages - len(self.packages)) / self.number_of_packages)
 		try:
+			print("[StartWizard] Write to /proc/progress")
 			open("/proc/progress", "w").write(str(self["progress"].value))
 		except IOError:
-			pass
+			print("[StartWizard] Write to /proc/progress failed.")
 		self.package = self.packages.pop(0)
 		self["header"].setText(_("Autoinstalling %s") % self.package + " - %s%%" % self["progress"].value)
 		try:

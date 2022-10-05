@@ -50,7 +50,7 @@ def parseKeys(context, filename, actionmap, device, keys):
 		assert flags, "[keymapparser] %s: must specify at least one flag in context %s, id '%s'" % (filename, context, id)
 
 		keyid = getKeyId(id)
-#				print "[keymapparser] " + context + "::" + mapto + " -> " + device + "." + hex(keyid)
+#				print("[keymapparser] " + context + "::" + mapto + " -> " + device + "." + hex(keyid))
 		actionmap.bindKey(filename, device, keyid, flags, context, mapto)
 		addKeyBinding(filename, keyid, context, mapto, flags)
 

@@ -84,10 +84,10 @@ def setEPGCachePath(configElement):
 
 #demo code for use of standby enter leave callbacks
 #def leaveStandby():
-#	print "!!!!!!!!!!!!!!!!!leave standby"
+#	print("!!!!!!!!!!!!!!!!!leave standby")
 
 #def standbyCountChanged(configElement):
-#	print "!!!!!!!!!!!!!!!!!enter standby num", configElement.value
+#	print("!!!!!!!!!!!!!!!!!enter standby num", configElement.value)
 #	from Screens.Standby import inStandby
 #	inStandby.onClose.append(leaveStandby)
 
@@ -476,7 +476,7 @@ class AutoScartControl:
 		self.VCRSbChanged(self.current_vcr_sb)
 
 	def VCRSbChanged(self, value):
-		#print "vcr sb changed to", value
+		#print("vcr sb changed to", value)
 		self.current_vcr_sb = value
 		if config.av.vcrswitch.value or value > 2:
 			if value:

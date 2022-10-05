@@ -269,7 +269,7 @@ class UpdatePlugin(Screen, ProtectedScreen):
 			if 'enigma2-plugin-settings-' in param[0] and self.channellist_only > 0:
 				self.channellist_name = param[0]
 				self.channellist_only = 2
-		#print event, "-", param
+		#print(event, "-", param)
 		pass
 
 	def setEndMessage(self, txt):

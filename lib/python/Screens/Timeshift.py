@@ -59,7 +59,7 @@ class TimeshiftSettings(Setup):
 		pathList = [(x, x) for x in configList]
 		configEntry.value = path
 		configEntry.setChoices(pathList, default=configEntry.default)
-		print("[Timeshift] %s: Current='%s', Default='%s', Choices='%s'" % (item, configEntry.value, configEntry.default, configList))
+		print("[Timeshift] DEBUG %s: Current='%s', Default='%s', Choices='%s'" % (item, configEntry.value, configEntry.default, configList))
 
 	def pathSelect(self, path):
 		if path is not None:

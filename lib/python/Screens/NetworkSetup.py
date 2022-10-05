@@ -204,7 +204,7 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		HelpableScreen.__init__(self)
 		self.setTitle(_("Configure nameservers"))
 		self.backupNameserverList = iNetwork.getNameserverList()[:]
-		print("backup-list:", self.backupNameserverList)
+		print("[NetworkSetup] backup-list:", self.backupNameserverList)
 
 		self["key_red"] = StaticText(_("Cancel"))
 		self["key_green"] = StaticText(_("Add"))
@@ -281,7 +281,7 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self.createSetup()
 
 	def remove(self):
-		print("currentIndex:", self["config"].getCurrentIndex())
+		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
 		index = self["config"].getCurrentIndex()
 		if index < len(self.nameservers):
 			iNetwork.removeNameserver(self.nameservers[index])

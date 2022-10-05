@@ -96,7 +96,7 @@ def listsDirPath():
 				if len(line) > 2 and line[1] == ('lists_dir'):
 					return line[2].strip()
 	except Exception as ex:
-		print("[opkg]", ex)
+		print("[Opkg]", ex)
 	return '/var/lib/opkg/lists'
 
 
@@ -142,7 +142,7 @@ class OpkgComponent:
 		self.runCmd("%s %s" % (opkgExtraDestinations(), cmd))
 
 	def runCmd(self, cmd):
-		print("executing", self.opkg, cmd)
+		print("[Opkg] executing", self.opkg, cmd)
 		self.cmd.appClosed.append(self.cmdFinished)
 		self.cmd.dataAvail.append(self.cmdData)
 		if self.cmd.execute("%s %s" % (self.opkg, cmd)):
@@ -185,7 +185,7 @@ class OpkgComponent:
 
 	def cmdData(self, data):
 		data = data.decode()
-		print("data:", data)
+		print("[Opkg] data:", data)
 		if self.cache is None:
 			self.cache = data
 		else:

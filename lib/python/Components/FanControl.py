@@ -22,14 +22,14 @@ class FanControl:
 			cfg = self.getConfig(fanid)
 			self.setVoltage(fanid, cfg.vlt.value)
 			self.setPWM(fanid, cfg.pwm.value)
-			print("[FanControl]: setting fan values: fanid = %d, voltage = %d, pwm = %d" % (fanid, cfg.vlt.value, cfg.pwm.value))
+			print("[FanControl] setting fan values: fanid = %d, voltage = %d, pwm = %d" % (fanid, cfg.vlt.value, cfg.pwm.value))
 
 	def setVoltage_PWM_Standby(self):
 		for fanid in range(self.getFanCount()):
 			cfg = self.getConfig(fanid)
 			self.setVoltage(fanid, cfg.vlt_standby.value)
 			self.setPWM(fanid, cfg.pwm_standby.value)
-			print("[FanControl]: setting fan values (standby mode): fanid = %d, voltage = %d, pwm = %d" % (fanid, cfg.vlt_standby.value, cfg.pwm_standby.value))
+			print("[FanControl] setting fan values (standby mode): fanid = %d, voltage = %d, pwm = %d" % (fanid, cfg.vlt_standby.value, cfg.pwm_standby.value))
 
 	def getRecordEvent(self, recservice, event):
 		recordings = len(NavigationInstance.instance.getRecordings())
@@ -88,19 +88,23 @@ class FanControl:
 		return int(open("/proc/stb/fp/fan_speed", "r").readline().strip()[:-4])
 
 	def getVoltage(self, fanid):
+		print("[FanControl] Read /proc/stb/fp/fan_vlt")
 		return int(open("/proc/stb/fp/fan_vlt", "r").readline().strip(), 16)
 
 	def setVoltage(self, fanid, value):
 		if value > 255:
 			return
+		print("[FanControl] Write to /proc/stb/fp/fan_vlt")
 		open("/proc/stb/fp/fan_vlt", "w").write("%x" % value)
 
 	def getPWM(self, fanid):
+		print("[FanControl] Read /proc/stb/fp/fan_pwm")
 		return int(open("/proc/stb/fp/fan_pwm", "r").readline().strip(), 16)
 
 	def setPWM(self, fanid, value):
 		if value > 255:
 			return
+		print("[FanControl] Write to /proc/stb/fp/fan_pwm")
 		open("/proc/stb/fp/fan_pwm", "w").write("%x" % value)
 
 

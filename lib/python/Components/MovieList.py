@@ -137,7 +137,7 @@ def resetMoviePlayState(cutsFileName, ref=None):
 	except:
 		pass
 		#import sys
-		#print "Exception in resetMoviePlayState: %s: %s" % sys.exc_info()[:2]
+		#print("Exception in resetMoviePlayState: %s: %s" % sys.exc_info()[:2])
 
 
 class MovieList(GUIComponent):
@@ -643,7 +643,7 @@ class MovieList(GUIComponent):
 
 		reflist = root and serviceHandler.list(root)
 		if reflist is None:
-			print("listing of movies failed")
+			print("[MovieList] listing of movies failed")
 			return
 		realtags = set()
 		autotags = {}

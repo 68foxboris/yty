@@ -150,7 +150,7 @@ class EPGList(GUIComponent):
 #				try:
 #					x()
 #				except: # FIXME!!!
-#					print "FIXME in EPGList.selectionChanged"
+#					print("FIXME in EPGList.selectionChanged")
 #					pass
 
 	GUI_WIDGET = eListbox

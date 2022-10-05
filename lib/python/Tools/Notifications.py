@@ -42,17 +42,17 @@ def AddNotificationWithID(id, screen, *args, **kwargs):
 
 def RemovePopup(id):
 	# remove similiar notifications
-	print("RemovePopup, id =", id)
+	print("[Notifications] RemovePopup, id =", id)
 	for x in notifications:
 		if x[4] and x[4] == id:
-			print("(found in notifications)")
+			print("[Notifications] found in notifications")
 			lock.acquire(True)
 			notifications.remove(x)
 			lock.release()
 
 	for x in current_notifications:
 		if x[0] == id:
-			print("(found in current notifications)")
+			print("[Notifications] found in current notifications")
 			x[1].close()
 
 
@@ -62,7 +62,7 @@ from Screens.MessageBox import MessageBox
 def AddPopup(text, type, timeout, id=None):
 	if id is not None:
 		RemovePopup(id)
-	print("AddPopup, id =", id)
+	print("[Notifications] AddPopup, id =", id)
 	AddNotificationWithID(id, MessageBox, text=text, type=type, timeout=timeout, close_on_any_key=True)
 
 
