@@ -49,16 +49,21 @@ class FrontpanelLed(Element):
 		(speed, pattern, pattern_4bit) = self.patterns[val] if self.patterns != True else ledPatterns.getLedPatterns(self.which)[val]
 
 		try:
+			print("[FrontpanelLed] Write to /proc/stb/fp/led%d_pattern" % self.which)
 			open("/proc/stb/fp/led%d_pattern" % self.which, "w").write("%08x" % pattern)
 		except IOError:
-			pass
+			print("[FrontpanelLed] Write to /proc/stb/fp/led_pattern failed.")
 		if self.which == 0:
 			try:
+				print("[FrontpanelLed] Write to /proc/stb/fp/led_pattern")
 				open("/proc/stb/fp/led_set_pattern", "w").write("%08x" % pattern_4bit)
+				print("[FrontpanelLed] Write to /proc/stb/fp/led_set_speed")
 				open("/proc/stb/fp/led_set_speed", "w").write("%d" % speed)
 			except IOError:
-				pass
+				print("[FrontpanelLed] Write to /proc/stb/fp/led_pattern failed.")
+				print("[FrontpanelLed] Write to /proc/stb/fp/led_set_speed failed.")
 			try:
+				print("[FrontpanelLed] Write to /proc/stb/fp/led_pattern_speed")
 				open("/proc/stb/fp/led_pattern_speed", "w").write("%d" % speed)
 			except IOError:
-				pass
+				print("[FrontpanelLed] Write to /proc/stb/fp/led_pattern_speed failed.")

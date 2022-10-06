@@ -12,7 +12,7 @@ class TunerInfo(Source):
 		if res_mgr:
 			res_mgr.frontendUseMaskChanged.get().append(self.tunerUseMaskChanged)
 		else:
-			print("no res_mgr!!")
+			print("[TunerInfo] no res_mgr!!")
 
 	def tunerUseMaskChanged(self, mask):
 		self.tuner_use_mask = mask
@@ -26,5 +26,5 @@ class TunerInfo(Source):
 		if res_mgr:
 			res_mgr.frontendUseMaskChanged.get().remove(self.tunerUseMaskChanged)
 		else:
-			print("no res_mgr!!")
+			print("[TunerInfo] no res_mgr!!")
 		Source.destroy(self)
