@@ -815,7 +815,7 @@ int eDVBCIInterfaces::setInputSource(int tuner_no, const std::string &source)
 
 		if (CFile::write(buf, source.c_str()) == -1)
 		{
-			eDebug("[CI] eDVBCIInterfaces setInputSource for input %s failed!", source.c_str());
+			eTrace("[CI] eDVBCIInterfaces setInputSource for input %s failed!", source.c_str());
 			return 0;
 		}
 
