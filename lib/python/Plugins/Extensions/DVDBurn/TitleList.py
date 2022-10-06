@@ -107,8 +107,8 @@ class TitleList(Screen, HelpableScreen):
 
 	def checkBackgroundJobs(self):
 		for job in job_manager.getPendingJobs():
-			print("type(job):", type(job))
-			print("Process.DVDJob:", Process.DVDJob)
+			print("[DVDBurn] type(job):", type(job))
+			print("[DVDBurn] Process.DVDJob:", Process.DVDJob)
 			if isinstance(job, Process.DVDJob):
 				self.backgroundJob = job
 				return
@@ -203,7 +203,7 @@ class TitleList(Screen, HelpableScreen):
 				pass
 
 			def doContext(self):
-				print("context menu forbidden inside DVDBurn to prevent calling multiple instances")
+				print("[DVDBurn] context menu forbidden inside DVDBurn to prevent calling multiple instances")
 
 			def updateButtons(self):
 				# the original will hide red/green, and crash...
@@ -316,7 +316,7 @@ class TitleList(Screen, HelpableScreen):
 		size = self.project.size / (1024 * 1024)
 		MAX_DL = self.project.MAX_DL - 100
 		MAX_SL = self.project.MAX_SL - 100
-		print("updateSize:", size, "MAX_DL:", MAX_DL, "MAX_SL:", MAX_SL)
+		print("[DVDBurn] updateSize:", size, "MAX_DL:", MAX_DL, "MAX_SL:", MAX_SL)
 		if size > MAX_DL:
 			percent = 100 * size / float(MAX_DL)
 			self["space_label_dual"].text = "%d MB (%.2f%%)" % (size, percent)
@@ -390,6 +390,6 @@ class TitleList(Screen, HelpableScreen):
 			self.session.openWithCallback(self.exitCB, MessageBox, text=_("Your current collection will get lost!") + "\n" + _("Do you really want to exit?"), type=MessageBox.TYPE_YESNO)
 
 	def exitCB(self, answer):
-		print("exitCB", answer)
+		print("[DVDBurn] exitCB", answer)
 		if answer is not None and answer:
 			self.close()

@@ -90,7 +90,7 @@ class VideoHardware:
 		ret = (16, 9)
 		port = config.av.videoport.value
 		if port not in config.av.videomode:
-			print("[VideoHardware] current port not available in getOutputAspect!!! force 16:9")
+			print("[Videomode] VideoHardware current port not available in getOutputAspect!!! force 16:9")
 		else:
 			mode = config.av.videomode[port].value
 			force_widescreen = self.isWidescreenMode(port, mode)
@@ -105,6 +105,7 @@ class VideoHardware:
 						ret = (16, 10)
 			elif is_auto:
 				try:
+					print("[Videomode] Read /proc/stb/vmpeg/0/aspect")
 					aspect_str = open("/proc/stb/vmpeg/0/aspect", "r").read()
 					if aspect_str == "1": # 4:3
 						ret = (4, 3)
@@ -125,10 +126,10 @@ class VideoHardware:
 		self.widescreen_modes = set(["720p", "1080i", "1080p", "2160p", "2160p30"]).intersection(*[self.modes_available])
 
 		if "DVI-PC" in self.modes and not self.getModeList("DVI-PC"):
-			print("[VideoHardware] remove DVI-PC because of not existing modes")
+			print("[Videomode] VideoHardware remove DVI-PC because of not existing modes")
 			del self.modes["DVI-PC"]
 		if "Scart" in self.modes and not self.getModeList("Scart"):
-			print("[VideoHardware] remove Scart because of not existing modes")
+			print("[Videomode] VideoHardware remove Scart because of not existing modes")
 			del self.modes["Scart"]
 
 		self.createConfig()
@@ -147,9 +148,10 @@ class VideoHardware:
 
 	def readAvailableModes(self):
 		try:
+			print("[Videomode] Read /proc/stb/video/videomode_choices")
 			modes = open("/proc/stb/video/videomode_choices").read()[:-1]
 		except IOError:
-			print("[VideoHardware] couldn't read available videomodes.")
+			print("[Videomode] Read /proc/stb/video/videomode_choices failed.")
 			self.modes_available = []
 			return
 		self.modes_available = modes.split(' ')
@@ -157,18 +159,20 @@ class VideoHardware:
 	def readPreferredModes(self):
 		if config.av.edid_override.value == False:
 			try:
-				modes = open("/proc/stb/video/videomode_preferred").read()[:-1]
+				print("[Videomode] Read /proc/stb/video/videomode_edid")
+				modes = open("/proc/stb/video/videomode_edid").read()[:-1]
 				self.modes_preferred = modes.split(' ')
+				print("[Videomode] VideoHardware reading edid modes: ", self.modes_preferred)
 			except IOError:
-				print("[VideoHardware] reading preferred modes failed, using all video modes")
+				print("[Videomode] reading preferred modes failed, using all video modes")
 				self.modes_preferred = self.modes_available
 
 			if len(self.modes_preferred) <= 1:
 				self.modes_preferred = self.modes_available
-				print("[VideoHardware] reading preferred modes is empty, using all video modes")
+				print("[Videomode] VideoHardware reading preferred modes is empty, using all video modes")
 		else:
 			self.modes_preferred = self.modes_available
-			print("[VideoHardware] reading preferred modes override, using all video modes")
+			print("[Videomode] VideoHardware reading preferred modes override, using all video modes")
 
 		self.last_modes_preferred = self.modes_preferred
 
@@ -188,7 +192,7 @@ class VideoHardware:
 		return mode in self.widescreen_modes
 
 	def setMode(self, port, mode, rate, force=None):
-		print("[VideoHardware] setMode - port:", port, "mode:", mode, "rate:", rate)
+		print("[Videomode] VideoHardware setMode - port:", port, "mode:", mode, "rate:", rate)
 		# we can ignore "port"
 		self.current_mode = mode
 		self.current_port = port
@@ -208,30 +212,36 @@ class VideoHardware:
 				mode_24 = mode_50
 
 		try:
+			print("[Videomode] Write to /proc/stb/video/videomode_50hz")
 			open("/proc/stb/video/videomode_50hz", "w").write(mode_50)
+			print("[Videomode] Write to /proc/stb/video/videomode_60hz")
 			open("/proc/stb/video/videomode_60hz", "w").write(mode_60)
 		except IOError:
+			print("[Videomode] Write to /proc/stb/video/videomode_50hz failed.")
+			print("[Videomode] Write to /proc/stb/video/videomode_60hz failed.")
 			try:
 				# fallback if no possibility to setup 50/60 hz mode
+				print("[Videomode] Write to /proc/stb/video/videomode")
 				open("/proc/stb/video/videomode", "w").write(mode_50)
 			except IOError:
-				print("[VideoHardware] setting videomode failed.")
+				print("[Videomode] setting videomode failed.")
 
 		try:
 			open("/etc/videomode", "w").write(mode_50) # use 50Hz mode (if available) for booting
 		except IOError:
-			print("[VideoHardware] writing initial videomode to /etc/videomode failed.")
+			print("[Videomode] writing initial videomode to /etc/videomode failed.")
 
 		if SystemInfo["Has24hz"]:
 			try:
+				print("[Videomode] Write to /proc/stb/video/videomode_24hz")
 				open("/proc/stb/video/videomode_24hz", "w").write(mode_24)
 			except IOError:
-				print("[VideoHardware] cannot open /proc/stb/video/videomode_24hz")
+				print("[Videomode] Write to /proc/stb/video/videomode_24hz failed.")
 
 		self.updateAspect(None)
 
 	def saveMode(self, port, mode, rate):
-		print("[VideoHardware] saveMode", port, mode, rate)
+		print("[Videomode] VideoHardware saveMode", port, mode, rate)
 		config.av.videoport.value = port
 		config.av.videoport.save()
 		if port in config.av.videomode:
@@ -257,7 +267,7 @@ class VideoHardware:
 
 	# get a list with all modes, with all rates, for a given port.
 	def getModeList(self, port):
-		print("[VideoHardware] getModeList for port", port)
+		print("[Videomode] VideoHardware getModeList for port", port)
 		res = []
 		for mode in self.modes[port]:
 			# list all rates which are completely valid
@@ -306,13 +316,13 @@ class VideoHardware:
 	def setConfiguredMode(self):
 		port = config.av.videoport.value
 		if port not in config.av.videomode:
-			print("[VideoHardware] current port not available, not setting videomode")
+			print("[Videomode] VideoHardware current port not available, not setting videomode")
 			return
 
 		mode = config.av.videomode[port].value
 
 		if mode not in config.av.videorate:
-			print("[VideoHardware] current mode not available, not setting videomode")
+			print("[Videomode] VideoHardware current mode not available, not setting videomode")
 			return
 
 		rate = config.av.videorate[mode].value
@@ -341,7 +351,7 @@ class VideoHardware:
 
 		port = config.av.videoport.value
 		if port not in config.av.videomode:
-			print("[VideoHardware] current port not available, not setting videomode")
+			print("[Videomode] VideoHardware current port not available, not setting videomode")
 			return
 		mode = config.av.videomode[port].value
 
@@ -375,17 +385,19 @@ class VideoHardware:
 		else:
 			wss = "auto"
 
-		print("[VideoHardware] -> setting aspect, policy, policy2, wss", aspect, policy, policy2, wss)
+		print("[Videomode] VideoHardware -> setting aspect, policy, policy2, wss", aspect, policy, policy2, wss)
 		open("/proc/stb/video/aspect", "w").write(aspect)
 		open("/proc/stb/video/policy", "w").write(policy)
 		try:
+			print("[Videomode] Write to /proc/stb/denc/0/wss")
 			open("/proc/stb/denc/0/wss", "w").write(wss)
 		except IOError:
-			pass
+			print("[Videomode] Write to /proc/stb/denc/0/wss failed.")
 		try:
+			print("[Videomode] Write to /proc/stb/video/policy2")
 			open("/proc/stb/video/policy2", "w").write(policy2)
 		except IOError:
-			pass
+			print("[Videomode] Write to /proc/stb/video/policy2 failed.")
 
 
 video_hw = VideoHardware()

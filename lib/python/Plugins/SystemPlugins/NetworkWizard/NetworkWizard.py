@@ -194,7 +194,7 @@ class NetworkWizard(WizardLanguage, Rc):
 			self.isInterfaceUp = iNetwork.getAdapterAttribute(self.selectedInterface, 'up')
 			self.resetRef.close(True)
 		else:
-			print("we should never come here!")
+			print("[NetworkWizard] we should never come here!")
 
 	def AdapterSetupEnd(self, iface):
 		self.originalInterfaceStateChanged = True
@@ -312,7 +312,7 @@ class NetworkWizard(WizardLanguage, Rc):
 			self.w = iWlan.getInterface()
 			aps = iWlan.getNetworkList()
 			if aps is not None:
-				print("[NetworkWizard.py] got Accespoints!")
+				print("[NetworkWizard] got Accespoints!")
 				tmplist = []
 				complist = []
 				for ap in aps:
@@ -345,7 +345,7 @@ class NetworkWizard(WizardLanguage, Rc):
 	def isWlanPluginInstalled(self):
 		try:
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iWlan
-		except ImportError:
+		except ImportError as e:
 			self.WlanPluginInstalled = False
 		else:
 			self.WlanPluginInstalled = True
