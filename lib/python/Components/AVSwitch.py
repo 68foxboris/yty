@@ -27,11 +27,10 @@ class AVSwitch:
 			return (4, 3)
 		elif valstr == "16_9": # auto ... 4:3 or 16:9
 			try:
-				print("[AVSwitch] Read /proc/stb/vmpeg/0/aspect")
 				if "1" in open("/proc/stb/vmpeg/0/aspect", "r").read().split('\n', 1)[0]: # 4:3
 					return (4, 3)
 			except IOError:
-				print("[AVSwitch] Read /proc/stb/vmpeg/0/aspect failed.")
+				print("[AVSwitch] Read /proc/stb/vmpeg/0/aspect failed!")
 		elif valstr in ("16_9_always", "16_9_letterbox"): # 16:9
 			pass
 		elif valstr in ("16_10_letterbox", "16_10_panscan"): # 16:10
@@ -109,19 +108,17 @@ def InitAVSwitch():
 	# TRANSLATORS: (aspect ratio policy: scale as close to fullscreen as possible)
 	"scale": _("Just scale")}
 	try:
-		print("[AVSwitch] Read /proc/stb/video/policy2_choices")
 		if "full" in open("/proc/stb/video/policy2_choices").read().split('\n', 1)[0]:
 			# TRANSLATORS: (aspect ratio policy: display as fullscreen, even if the content aspect ratio does not match the screen ratio)
 			policy2_choices.update({"full": _("Full screen")})
 	except:
-		print("[AVSwitch] Read /proc/stb/video/policy2_choices failed.")
+		print("[AVSwitch] Read /proc/stb/video/policy2_choices failed!")
 	try:
-		print("[AVSwitch] Read /proc/stb/video/policy2_choices")
 		if "auto" in open("/proc/stb/video/policy2_choices").read().split('\n', 1)[0]:
 			# TRANSLATORS: (aspect ratio policy: automatically select the best aspect ratio mode)
 			policy2_choices.update({"auto": _("Auto")})
 	except:
-		print("[AVSwitch] Read /proc/stb/video/policy2_choices failed.")
+		print("[AVSwitch] Read /proc/stb/video/policy2_choices failed!")
 	config.av.policy_169 = ConfigSelection(choices=policy2_choices, default="scale")
 	policy_choices = {
 	# TRANSLATORS: (aspect ratio policy: black bars on left/right) in doubt, keep english term.
@@ -131,26 +128,23 @@ def InitAVSwitch():
 	# TRANSLATORS: (aspect ratio policy: scale as close to fullscreen as possible)
 	"scale": _("Just scale")}
 	try:
-		print("[AVSwitch] Read /proc/stb/video/policy_choices")
 		if "nonlinear" in open("/proc/stb/video/policy_choices").read().split('\n', 1)[0]:
 			# TRANSLATORS: (aspect ratio policy: display as fullscreen, with stretching the left/right)
 			policy_choices.update({"nonlinear": _("Nonlinear")})
 	except:
-		print("[AVSwitch] Read /proc/stb/video/policy_choices failed.")
+		print("[AVSwitch] Read /proc/stb/video/policy_choices failed!")
 	try:
-		print("[AVSwitch] Read /proc/stb/video/policy_choices")
 		if "full" in open("/proc/stb/video/policy_choices").read().split('\n', 1)[0]:
 			# TRANSLATORS: (aspect ratio policy: display as fullscreen, even if the content aspect ratio does not match the screen ratio)
 			policy_choices.update({"full": _("Full screen")})
 	except:
-		print("[AVSwitch] Read /proc/stb/video/policy_choices failed.")
+		print("[AVSwitch] Read /proc/stb/video/policy_choices failed!")
 	try:
-		print("[AVSwitch] Read /proc/stb/video/policy_choices")
 		if "auto" in open("/proc/stb/video/policy_choices").read().split('\n', 1)[0]:
 			# TRANSLATORS: (aspect ratio policy: automatically select the best aspect ratio mode)
 			policy_choices.update({"auto": _("Auto")})
 	except:
-		print("[AVSwitch] Read /proc/stb/video/policy_choices failed.")
+		print("[AVSwitch] Read /proc/stb/video/policy_choices failed!")
 	config.av.policy_43 = ConfigSelection(choices=policy_choices, default="scale")
 	config.av.tvsystem = ConfigSelection(choices={"pal": "PAL", "ntsc": "NTSC", "multinorm": "multinorm"}, default="pal")
 	config.av.wss = ConfigEnableDisable(default=True)
@@ -328,7 +322,11 @@ def InitAVSwitch():
 		])
 
 		def setHlgSupport(configElement):
-			open("/proc/stb/hdmi/hlg_support", "w").write(configElement.value)
+			try:
+				open("/proc/stb/hdmi/hlg_support", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/hdmi/hlg_support failed!")
+
 		config.av.hlg_support.addNotifier(setHlgSupport)
 
 		config.av.hdr10_support = ConfigSelection(default="auto(EDID)", choices=[
@@ -338,16 +336,25 @@ def InitAVSwitch():
 		])
 
 		def setHdr10Support(configElement):
-			open("/proc/stb/hdmi/hdr10_support", "w").write(configElement.value)
+			try:
+				open("/proc/stb/hdmi/hdr10_support", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/hdmi/hdr10_support failed!")
 		config.av.hdr10_support.addNotifier(setHdr10Support)
 
 		def setDisable12Bit(configElement):
-			open("/proc/stb/video/disable_12bit", "w").write("1" if configElement.value else "0")
+			try:
+				open("/proc/stb/video/disable_12bit", "w").write("1" if configElement.value else "0")
+			except:
+				print("[AVSwitch] Write to /proc/stb/video/disable_12bit failed!")
 		config.av.allow_12bit = ConfigYesNo(default=False)
 		config.av.allow_12bit.addNotifier(setDisable12Bit)
 
 		def setDisable10Bit(configElement):
-			open("/proc/stb/video/disable_10bit", "w").write("1" if configElement.value else "0")
+			try:
+				open("/proc/stb/video/disable_10bit", "w").write("1" if configElement.value else "0")
+			except:
+				print("[AVSwitch] Write to /proc/stb/video/disable_10bit failed!")
 		config.av.allow_10bit = ConfigYesNo(default=False)
 		config.av.allow_10bit.addNotifier(setDisable10Bit)
 
@@ -423,7 +430,10 @@ def InitAVSwitch():
 		default = "downmix"
 
 		def setAACDownmix(configElement):
-			open("/proc/stb/audio/aac", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/aac", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/aac failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/aac_choices", "r") as aac_choices:
 				aac_choices.read().split('\n', 1)[0]
@@ -445,7 +455,10 @@ def InitAVSwitch():
 		default = "downmix"
 
 		def setAACDownmixPlus(configElement):
-			open("/proc/stb/audio/aacplus", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/aacplus", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/aacplus failed!")
 		if SystemInfo["CanProc"]:
 			with open(SystemInfo["CanDownmixAACPlus"], "r") as aacplus_choices:
 				aacplus_choices.read().split('\n', 1)[0]
@@ -461,7 +474,10 @@ def InitAVSwitch():
 		default = "downmix"
 
 		def setDTSDownmix(configElement):
-			open("/proc/stb/audio/dts", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/dts", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/dts failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/dts_choices", "r") as dts_choices:
 				dts_choices.read().split('\n', 1)[0]
@@ -487,7 +503,10 @@ def InitAVSwitch():
 			default = "use_hdmi_caps"
 
 		def setDTSHD(configElement):
-			open("/proc/stb/audio/dtshd", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/dtshd", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/dtshd failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/dtshd_choices", "r") as dtshd_choices:
 				dtshd_choices.read().split('\n', 1)[0]
@@ -504,7 +523,10 @@ def InitAVSwitch():
 		default = "off"
 
 		def setAACTranscode(configElement):
-			open("/proc/stb/audio/aac_transcode", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/aac_transcode", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/aac_transcode failed!")
 		if SystemInfo["CanProc"]:
 			with open(SystemInfo["CanAACTranscode"], "r") as aac_transcode_choices:
 				aac_transcode_choices.read().split('\n', 1)[0]
@@ -541,7 +563,10 @@ def InitAVSwitch():
 			default = "force_ac3"
 
 		def setAC3plusTranscode(configElement):
-			open("/proc/stb/audio/ac3plus", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/ac3plus", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/ac3plus failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/ac3plus_choices", "r") as ac3plus_choices:
 				ac3plus_choices.read().split('\n', 1)[0]
@@ -603,7 +628,10 @@ def InitAVSwitch():
 		default = "none"
 
 		def set3DSurround(configElement):
-			open("/proc/stb/audio/3d_surround", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/3d_surround", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/3d_surround failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/3d_surround_choices", "r") as surround:
 				surround.read().split('\n', 1)[0]
@@ -622,7 +650,10 @@ def InitAVSwitch():
 		default = "center"
 
 		def set3DPosition(configElement):
-			open("/proc/stb/audio/3d_surround_speaker_position", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/3d_surround_speaker_position", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/3d_surround_speaker_position failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/3d_surround_speaker_position_choices", "r") as speaker:
 				speaker.read().split('\n', 1)[0]
@@ -642,7 +673,10 @@ def InitAVSwitch():
 		default = "disabled"
 
 		def set3DPositionDisable(configElement):
-			open("/proc/stb/audio/3dsurround", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/3dsurround", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/3dsurround failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/3dsurround_choices", "r") as surroundspeaker:
 				surroundspeaker.read().split('\n', 1)[0]
@@ -662,7 +696,10 @@ def InitAVSwitch():
 		default = "none"
 
 		def setAutoVolume(configElement):
-			open("/proc/stb/audio/avl", "w").write(configElement.value)
+			try:
+				open("/proc/stb/audio/avl", "w").write(configElement.value)
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/avl failed!")
 		if SystemInfo["CanProc"]:
 			with open("/proc/stb/audio/avl_choices", "r") as avl_choices:
 				avl_choices.read().split('\n', 1)[0]
@@ -674,7 +711,10 @@ def InitAVSwitch():
 
 	if SystemInfo["HasAutoVolumeLevel"]:
 		def setAutoVolumeLevel(configElement):
-			open("/proc/stb/audio/autovolumelevel_choices", "w").write("enabled" if configElement.value else "disabled")
+			try:
+				open("/proc/stb/audio/autovolumelevel_choices", "w").write("enabled" if configElement.value else "disabled")
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/autovolumelevel_choices failed!")
 		config.av.autovolumelevel = ConfigYesNo(default=False)
 		config.av.autovolumelevel.addNotifier(setAutoVolumeLevel)
 
@@ -688,7 +728,7 @@ def InitAVSwitch():
 				print("[AVSwitch] Write to /proc/stb/vmpeg/0/pep_apply")
 				open("/proc/stb/vmpeg/0/pep_apply", "w").write("1")
 			except IOError:
-				print("[AVSwitch] couldn't write pep_scaler_sharpness")
+				print("[AVSwitch] Couldn't write pep_scaler_sharpness or pep_apply")
 
 		if model == "gb7356":
 			config.av.scaler_sharpness = ConfigSlider(default=5, limits=(0, 26))
@@ -700,8 +740,10 @@ def InitAVSwitch():
 
 	if SystemInfo["Has3DSurroundSoftLimiter"]:
 		def set3DSurroundSoftLimiter(configElement):
-			print("[AVSwitch] Write to /proc/stb/audio/3dsurround_softlimiter")
-			open("/proc/stb/audio/3dsurround_softlimiter", "w").write(configElement.value and "enabled" or "disabled")
+			try:
+				open("/proc/stb/audio/3dsurround_softlimiter", "w").write(configElement.value and "enabled" or "disabled")
+			except:
+				print("[AVSwitch] Write to /proc/stb/audio/3dsurround_softlimiter failed!")
 		config.av.surround_softlimiter_3d = ConfigYesNo(default=False)
 		config.av.surround_softlimiter_3d.addNotifier(set3DSurroundSoftLimiter)
 
@@ -712,7 +754,9 @@ def InitAVSwitch():
 
 	if SystemInfo["CanChangeOsdAlpha"]:
 		def setAlpha(config):
-			print("[AVSwitch] Write to /proc/stb/video/alpha")
-			open("/proc/stb/video/alpha", "w").write(str(config.value))
+			try:
+				open("/proc/stb/video/alpha", "w").write(str(config.value))
+			except:
+				print("[AVSwitch] Write to /proc/stb/video/alpha failed!")
 		config.av.osd_alpha = ConfigSlider(default=255, limits=(0, 255))
 		config.av.osd_alpha.addNotifier(setAlpha)
