@@ -20,14 +20,14 @@ cmdline = {k: v.strip('"') for k, v in re.findall(r'(\S+)=(".*?"|\S+)', cmdline)
 
 def getNumVideoDecoders():
 	numVideoDecoders = 0
-	while fileExists("/dev/dvb/adapter0/video%d" % numVideoDecoders, "f"):
+	while exists("/dev/dvb/adapter0/video%d" % numVideoDecoders, "f"):
 		numVideoDecoders += 1
 	return numVideoDecoders
 
 
 def countFrontpanelLEDs():
-	numLeds = fileExists("/proc/stb/fp/led_set_pattern") and 1 or 0
-	while fileExists("/proc/stb/fp/led%d_pattern" % numLeds):
+	numLeds = exists("/proc/stb/fp/led_set_pattern") and 1 or 0
+	while exists("/proc/stb/fp/led%d_pattern" % numLeds):
 		numLeds += 1
 	return numLeds
 
@@ -39,7 +39,7 @@ def hassoftcaminstalled():
 
 def getBootdevice():
 	dev = ("root" in cmdline and cmdline["root"].startswith("/dev/")) and cmdline["root"][5:]
-	while dev and not fileExists("/sys/block/%s" % dev):
+	while dev and not exists("/sys/block/%s" % dev):
 		dev = dev[:-1]
 	return dev
 
@@ -58,12 +58,12 @@ SystemInfo["CanMeasureFrontendInputPower"] = eDVBResourceManager.getInstance().c
 SystemInfo["12V_Output"] = Misc_Options.getInstance().detected_12V_output()
 SystemInfo["ZapMode"] = fileCheck("/proc/stb/video/zapmode") or fileCheck("/proc/stb/video/zapping_mode")
 SystemInfo["NumFrontpanelLEDs"] = countFrontpanelLEDs()
-SystemInfo["FrontpanelDisplay"] = fileExists("/dev/dbox/oled0") or fileExists("/dev/dbox/lcd0")
+SystemInfo["FrontpanelDisplay"] = fileCheck("/dev/dbox/oled0") or fileExists("/dev/dbox/lcd0")
 SystemInfo["LCDsymbol_circle_recording"] = fileCheck("/proc/stb/lcd/symbol_circle") or model in ("hd51", "vs1500") and fileCheck("/proc/stb/lcd/symbol_recording")
 SystemInfo["LCDsymbol_timeshift"] = fileCheck("/proc/stb/lcd/symbol_timeshift")
 SystemInfo["LCDshow_symbols"] = (model.startswith("et9") or model in ("hd51", "vs1500")) and fileCheck("/proc/stb/lcd/show_symbols")
 SystemInfo["LCDsymbol_hdd"] = model in ("hd51", "vs1500") and fileCheck("/proc/stb/lcd/symbol_hdd")
-SystemInfo["FrontpanelDisplayGrayscale"] = fileExists("/dev/dbox/oled0")
+SystemInfo["FrontpanelDisplayGrayscale"] = fileCheck("/dev/dbox/oled0")
 SystemInfo["DeepstandbySupport"] = HardwareInfo().get_device_name() != "dm800"
 SystemInfo["Fan"] = fileCheck("/proc/stb/fp/fan")
 SystemInfo["FanPWM"] = SystemInfo["Fan"] and fileCheck("/proc/stb/fp/fan_pwm")
@@ -103,7 +103,7 @@ SystemInfo["HasH265Encoder"] = fileContains("/proc/stb/encoder/0/vcodec_choices"
 SystemInfo["CanNotDoSimultaneousTranscodeAndPIP"] = model in ("vusolo4k", "gbquad4k", "gbue4k")
 SystemInfo["HasFrontDisplayPicon"] = model in ("et8500", "vusolo4k", "vuuno4kse", "vuduo4k", "vuduo4kse", "vuultimo4k", "gbquad4k", "gbue4k")
 SystemInfo["Has24hz"] = fileCheck("/proc/stb/video/videomode_24hz")
-SystemInfo["Has2160p"] = fileHas("/proc/stb/video/videomode_preferred", "2160p50")
+SystemInfo["Has2160p"] = fileCheck("/proc/stb/video/videomode_preferred", "2160p50")
 SystemInfo["HasHDMIin"] = model in ("sezammarvel", "xpeedlx3", "atemionemesis", "mbultra", "beyonwizt4", "hd2400", "dm7080", "et10000", "dreamone", "dreamtwo", "vuduo4k", "vuduo4kse", "vuultimo4k", "vuuno4kse", "gbquad4k", "hd2400", "et10000")
 SystemInfo["HasHDMIinFHD"] = model in ("dm820", "dm900", "dm920", "vuultimo4k", "beyonwizu4", "et13000", "sf5008", "vuuno4kse", "vuduo4k", "gbquad4k")
 SystemInfo["HDMIin"] = SystemInfo["HasHDMIin"] or SystemInfo["HasHDMIinFHD"]
@@ -129,12 +129,12 @@ SystemInfo["HasFBCtuner"] = ["Vuplus DVB-C NIM(BCM3158)", "Vuplus DVB-C NIM(BCM3
 SystemInfo["HaveCISSL"] = fileCheck("/etc/ssl/certs/customer.pem") and fileCheck("/etc/ssl/certs/device.pem")
 SystemInfo["CanChangeOsdAlpha"] = access("/proc/stb/video/alpha", R_OK) and True or False
 SystemInfo["ScalerSharpness"] = fileCheck("/proc/stb/vmpeg/0/pep_scaler_sharpness")
-SystemInfo["OScamInstalled"] = fileCheck("/usr/bin/oscam") or fileExists("/usr/bin/oscam-emu") or fileExists("/usr/bin/oscam-smod")
-SystemInfo["OScamIsActive"] = SystemInfo["OScamInstalled"] and fileExists("/tmp/.oscam/oscam.version")
+SystemInfo["OScamInstalled"] = fileCheck("/usr/bin/oscam") or fileCheck("/usr/bin/oscam-emu") or fileExists("/usr/bin/oscam-smod")
+SystemInfo["OScamIsActive"] = SystemInfo["OScamInstalled"] and fileCheck("/tmp/.oscam/oscam.version")
 SystemInfo["NCamInstalled"] = fileCheck("/usr/bin/ncam")
-SystemInfo["NCamIsActive"] = SystemInfo["NCamInstalled"] and fileExists("/tmp/.ncam/ncam.version")
+SystemInfo["NCamIsActive"] = SystemInfo["NCamInstalled"] and fileCheck("/tmp/.ncam/ncam.version")
 SystemInfo["HasHiSi"] = pathExists("/proc/hisi")
-SystemInfo["HiSilicon"] = pathExists("/proc/hisi") or fileExists("/usr/bin/hihalt")
+SystemInfo["HiSilicon"] = fileCheck("/proc/hisi") or fileCheck("/usr/bin/hihalt")
 SystemInfo["DreamBoxAudio"] = model in ("dm7080", "dm800")
 SystemInfo["FCCactive"] = False
 SystemInfo["CanProc"] = SystemInfo["CanProc"] = SystemInfo["HasMMC"]

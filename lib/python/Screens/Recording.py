@@ -6,7 +6,6 @@ from Components.UsageConfig import preferredPath
 from Screens.LocationBox import defaultInhibitDirs, MovieLocationBox
 from Screens.MessageBox import MessageBox
 from Screens.Setup import Setup
-from Tools.Directories import fileAccess
 
 
 class RecordingSettings(Setup):
@@ -88,6 +87,7 @@ class RecordingSettings(Setup):
 		self.changedEntry()
 
 	def pathStatus(self, path):
+		from Tools.Directories import fileAccess
 		if path.startswith("<"):
 			self.errorItem = -1
 			green = self.greenText

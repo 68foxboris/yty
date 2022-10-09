@@ -6,7 +6,6 @@ from Components.config import config
 from Screens.LocationBox import defaultInhibitDirs, TimeshiftLocationBox
 from Screens.MessageBox import MessageBox
 from Screens.Setup import Setup
-from Tools.Directories import fileAccess
 
 
 class TimeshiftSettings(Setup):
@@ -69,6 +68,7 @@ class TimeshiftSettings(Setup):
 		self.changedEntry()
 
 	def pathStatus(self, path):
+		from Tools.Directories import fileAccess
 		if not isdir(path):
 			self.errorItem = self["config"].getCurrentIndex()
 			green = ""
