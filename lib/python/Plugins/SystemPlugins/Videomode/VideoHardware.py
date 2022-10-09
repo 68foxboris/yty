@@ -105,12 +105,11 @@ class VideoHardware:
 						ret = (16, 10)
 			elif is_auto:
 				try:
-					print("[Videomode] Read /proc/stb/vmpeg/0/aspect")
 					aspect_str = open("/proc/stb/vmpeg/0/aspect", "r").read()
 					if aspect_str == "1": # 4:3
 						ret = (4, 3)
 				except IOError:
-					pass
+					print("[Videomode] Read /proc/stb/vmpeg/0/aspect failed!")
 			else:  # 4:3
 				ret = (4, 3)
 		return ret
@@ -148,10 +147,9 @@ class VideoHardware:
 
 	def readAvailableModes(self):
 		try:
-			print("[Videomode] Read /proc/stb/video/videomode_choices")
 			modes = open("/proc/stb/video/videomode_choices").read()[:-1]
 		except IOError:
-			print("[Videomode] Read /proc/stb/video/videomode_choices failed.")
+			print("[Videomode] Read /proc/stb/video/videomode_choices failed!")
 			self.modes_available = []
 			return
 		self.modes_available = modes.split(' ')
@@ -159,12 +157,11 @@ class VideoHardware:
 	def readPreferredModes(self):
 		if config.av.edid_override.value == False:
 			try:
-				print("[Videomode] Read /proc/stb/video/videomode_edid")
 				modes = open("/proc/stb/video/videomode_edid").read()[:-1]
 				self.modes_preferred = modes.split(' ')
 				print("[Videomode] VideoHardware reading edid modes: ", self.modes_preferred)
 			except IOError:
-				print("[Videomode] reading preferred modes failed, using all video modes")
+				print("[Videomode] Read /proc/stb/video/videomode_edid failed!")
 				self.modes_preferred = self.modes_available
 
 			if len(self.modes_preferred) <= 1:
@@ -212,31 +209,24 @@ class VideoHardware:
 				mode_24 = mode_50
 
 		try:
-			print("[Videomode] Write to /proc/stb/video/videomode_50hz")
 			open("/proc/stb/video/videomode_50hz", "w").write(mode_50)
-			print("[Videomode] Write to /proc/stb/video/videomode_60hz")
-			open("/proc/stb/video/videomode_60hz", "w").write(mode_60)
 		except IOError:
-			print("[Videomode] Write to /proc/stb/video/videomode_50hz failed.")
-			print("[Videomode] Write to /proc/stb/video/videomode_60hz failed.")
+			print("[Videomode] Write to /proc/stb/video/videomode_50hz failed!")
 			try:
-				# fallback if no possibility to setup 50/60 hz mode
-				print("[Videomode] Write to /proc/stb/video/videomode")
+				# fallback if no possibility to setup 50 hz mode
 				open("/proc/stb/video/videomode", "w").write(mode_50)
 			except IOError:
-				print("[Videomode] setting videomode failed.")
-
+				print("[Videomode] Write to /proc/stb/video/videomode failed!")
 		try:
-			open("/etc/videomode", "w").write(mode_50) # use 50Hz mode (if available) for booting
+			open("/proc/stb/video/videomode_60hz", "w").write(mode_60)
 		except IOError:
-			print("[Videomode] writing initial videomode to /etc/videomode failed.")
+			print("[Videomode] Write to /proc/stb/video/videomode_60hz failed!")
 
 		if SystemInfo["Has24hz"]:
 			try:
-				print("[Videomode] Write to /proc/stb/video/videomode_24hz")
 				open("/proc/stb/video/videomode_24hz", "w").write(mode_24)
 			except IOError:
-				print("[Videomode] Write to /proc/stb/video/videomode_24hz failed.")
+				print("[Videomode] Write to /proc/stb/video/videomode_24hz failed!")
 
 		self.updateAspect(None)
 
@@ -392,12 +382,11 @@ class VideoHardware:
 			print("[Videomode] Write to /proc/stb/denc/0/wss")
 			open("/proc/stb/denc/0/wss", "w").write(wss)
 		except IOError:
-			print("[Videomode] Write to /proc/stb/denc/0/wss failed.")
+			print("[Videomode] Write to /proc/stb/denc/0/wss failed!")
 		try:
-			print("[Videomode] Write to /proc/stb/video/policy2")
 			open("/proc/stb/video/policy2", "w").write(policy2)
 		except IOError:
-			print("[Videomode] Write to /proc/stb/video/policy2 failed.")
+			print("[Videomode] Write to /proc/stb/video/policy2 failed!")
 
 
 video_hw = VideoHardware()
