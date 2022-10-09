@@ -149,8 +149,7 @@ class VideoSetup(ConfigListScreen, Screen):
 				self.list.append(getConfigListEntry(_("3D surround speaker position"), config.av.surround_3d_speaker, _("This option allows you to disable or change the virtuell loadspeaker position.")))
 				if SystemInfo["Has3DSurroundSoftLimiter"] and config.av.surround_3d_speaker.value != "disabled":
 					self.list.append(getConfigListEntry(_("3D surround softlimiter"), config.av.surround_softlimiter_3d, _("This option allows you to enable 3D surround softlimiter.")))
-+			if SystemInfo["CanAudioDelay"]:
-+				self.list.append(getConfigListEntry(_("General audio delay"), config.av.audiodelay, _("This option configures the general audio delay.")))
+
 			if SystemInfo["CanBTAudio"]:
 				self.list.append(getConfigListEntry(_("Enable BT audio"), config.av.btaudio, _("This option allows you to switch audio to BT speakers.")))
 			if SystemInfo["CanBTAudioDelay"]:
