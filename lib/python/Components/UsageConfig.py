@@ -9,6 +9,7 @@ from Components.Renderer.FrontpanelLed import ledPatterns, PATTERN_ON, PATTERN_O
 from Components.ServiceList import refreshServiceList
 from Components.SystemInfo import SystemInfo
 from os.path import exists, isfile, islink, join as pathjoin, normpath
+from os import mkdir
 import os
 import time
 
@@ -22,8 +23,6 @@ def InitUsageConfig():
 	if isfile("/etc/crontab") and not fileContains("/etc/crontab", "registry.arm.bin"):
 		if isfile("/home/root/.cache/gstreamer-1.0/registry.arm.bin"):
 			Console().ePopen("sed -i '$a@reboot root rm -f /home/root/.cache/gstreamer-1.0/registry.arm.bin' /etc/crontab")
-		elif isfile("/home/root/.cache/gstreamer-0.10/registry.arm.bin"):
-			Console().ePopen("sed -i '$a@reboot root rm -f /home/root/.cache/gstreamer-0.10/registry.arm.bin' /etc/crontab")
 		else:
 			print("[UsageConfig] No registry.arm.bin?")
 	if fileContains("/etc/network/interfaces", "iface eth0 inet static") and not fileContains("/etc/network/interfaces", "iface wlan0 inet dhcp") or fileContains("/etc/network/interfaces", "iface wlan0 inet static") and fileContains("/run/ifstate", "wlan0=wlan0"):
