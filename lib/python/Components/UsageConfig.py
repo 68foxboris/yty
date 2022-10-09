@@ -8,7 +8,8 @@ from Components.NimManager import nimmanager
 from Components.Renderer.FrontpanelLed import ledPatterns, PATTERN_ON, PATTERN_OFF, PATTERN_BLINK
 from Components.ServiceList import refreshServiceList
 from Components.SystemInfo import SystemInfo
-from os.path import exists, islink, join as pathjoin, normpath
+from os import mkdir
+from os.path import exists, isfile, islink, join as pathjoin, normpath
 import os
 import time
 
@@ -19,6 +20,11 @@ visuallyImpairedCommentary = "NAR qad"
 
 def InitUsageConfig():
 	config.usage = ConfigSubsection()
+	if isfile("/etc/crontab") and not fileContains("/etc/crontab", "registry.arm.bin"):
+		if isfile("/home/root/.cache/gstreamer-1.0/registry.arm.bin"):
+			Console().ePopen("sed -i '$a@reboot root rm -f /home/root/.cache/gstreamer-1.0/registry.arm.bin' /etc/crontab")
+		else:
+			print("[UsageConfig] No registry.arm.bin?")
 	if fileContains("/etc/network/interfaces", "iface eth0 inet static") and not fileContains("/etc/network/interfaces", "iface wlan0 inet dhcp") or fileContains("/etc/network/interfaces", "iface wlan0 inet static") and fileContains("/run/ifstate", "wlan0=wlan0"):
 		config.usage.dns = ConfigSelection(default="custom", choices=[
 			("custom", _("Static IP or Custom")),
@@ -281,9 +287,9 @@ def InitUsageConfig():
 		choicelist.append((str(i), ngettext("%d minute", "%d minutes", m) % m))
 	config.usage.pip_last_service_timeout = ConfigSelection(default="0", choices=choicelist)
 
-	if not os.path.exists(resolveFilename(SCOPE_HDD)):
+	if not exists(resolveFilename(SCOPE_HDD)):
 		try:
-			os.mkdir(resolveFilename(SCOPE_HDD), 0o755)
+			mkdir(resolveFilename(SCOPE_HDD), 0o755)
 		except (IOError, OSError):
 			pass
 	defaultValue = resolveFilename(SCOPE_HDD)
@@ -312,9 +318,9 @@ def InitUsageConfig():
 			config.usage.instantrec_path.setChoices(choiceList + [(savedValue, savedValue)], default="<default>")
 			config.usage.instantrec_path.value = savedValue
 	config.usage.instantrec_path.save()
-	if not os.path.exists(resolveFilename(SCOPE_TIMESHIFT)):
+	if not exists(resolveFilename(SCOPE_TIMESHIFT)):
 		try:
-			os.mkdir(resolveFilename(SCOPE_TIMESHIFT), 0o755)
+			mkdir(resolveFilename(SCOPE_TIMESHIFT), 0o755)
 		except:
 			pass
 	defaultValue = resolveFilename(SCOPE_TIMESHIFT)
@@ -578,7 +584,7 @@ def InitUsageConfig():
 			("on", _("On")),
 			("auto", _("Auto"))
 		]
-		if os.path.exists("/proc/stb/fp/fan_choices"):
+		if exists("/proc/stb/fp/fan_choices"):
 			print("[UsageConfig] Read /proc/stb/fp/fan_choices")
 			choicelist = [x for x in choicelist if x[0] in open("/proc/stb/fp/fan_choices", "r").read().strip().split(" ")]
 		config.usage.fan = ConfigSelection(choicelist)
@@ -665,8 +671,8 @@ def InitUsageConfig():
 
 	hddchoises = [('/etc/enigma2/', 'Internal Flash')]
 	for p in harddiskmanager.getMountedPartitions():
-		if os.path.exists(p.mountpoint):
-			d = os.path.normpath(p.mountpoint)
+		if exists(p.mountpoint):
+			d = normpath(p.mountpoint)
 			if p.mountpoint != '/':
 				hddchoises.append((p.mountpoint, d))
 	config.misc.epgcachepath = ConfigSelection(default = '/etc/enigma2/', choices = hddchoises)
@@ -679,8 +685,8 @@ def InitUsageConfig():
 		epgcache = eEPGCache.getInstance()
 		epgcache.save()
 		if not config.misc.epgcache_filename.value.startswith("/etc/enigma2/"):
-			if os.path.exists('/etc/enigma2/' + config.misc.epgcachefilename.value.replace('.dat','') + '.dat'):
-				os.remove('/etc/enigma2/' + config.misc.epgcachefilename.value.replace('.dat','') + '.dat')
+			if exists('/etc/enigma2/' + config.misc.epgcachefilename.value.replace('.dat','') + '.dat'):
+				remove('/etc/enigma2/' + config.misc.epgcachefilename.value.replace('.dat','') + '.dat')
 	config.misc.epgcachepath.addNotifier(EpgCacheChanged, immediate_feedback = False)
 	config.misc.epgcachefilename.addNotifier(EpgCacheChanged, immediate_feedback = False)
 
@@ -706,7 +712,7 @@ def InitUsageConfig():
 
 	config.usage.keymap = ConfigText(default=eEnv.resolve("${datadir}/enigma2/keymap.xml"))
 	keytranslation = eEnv.resolve("${sysconfdir}/enigma2/keytranslation.xml")
-	if not os.path.exists(keytranslation):
+	if not exists(keytranslation):
 		keytranslation = eEnv.resolve("${datadir}/enigma2/keytranslation.xml")
 	config.usage.keytrans = ConfigText(default=keytranslation)
 	config.usage.alternative_imagefeed = ConfigText(default="", fixed_size=False)
@@ -746,14 +752,14 @@ def InitUsageConfig():
 				debugpath.append((p.mountpoint + 'logs/', d))
 	config.crash.debug_path = ConfigSelection(default="/home/root/logs/", choices=debugpath)
 	if not exists("/home"):
-		os.mkdir("/home", 0o755)
+		mkdir("/home", 0o755)
 	if not exists("/home/root"):
-		os.mkdir("/home/root", 0o755)
+		mkdir("/home/root", 0o755)
 
 	def updatedebug_path(configElement):
 		if not exists(config.crash.debug_path.value):
 			try:
-				os.mkdir(config.crash.debug_path.value, 0o755)
+				mkdir(config.crash.debug_path.value, 0o755)
 			except:
 				print("Failed to create log path: %s" % config.crash.debug_path.value)
 	config.crash.debug_path.addNotifier(updatedebug_path, immediate_feedback=False)
@@ -769,8 +775,8 @@ def InitUsageConfig():
 	def updateStackTracePrinter(configElement):
 		from Components.StackTrace import StackTracePrinter
 		if configElement.value:
-			if (os.path.isfile("/tmp/doPythonStackTrace")):
-				os.remove("/tmp/doPythonStackTrace")
+			if (isfile("/tmp/doPythonStackTrace")):
+				remove("/tmp/doPythonStackTrace")
 			from threading import current_thread
 			StackTracePrinter.getInstance().activate(current_thread().ident)
 		else:
@@ -885,7 +891,22 @@ def InitUsageConfig():
 	config.subtitles.colourise_dialogs = ConfigYesNo(default=False)
 	config.subtitles.subtitle_borderwidth = ConfigSelection(default="3", choices=["1", "2", "3", "4", "5"])
 	config.subtitles.subtitle_fontsize = ConfigSelection(default="40", choices=["%d" % x for x in range(16, 101) if not x % 2])
-	config.subtitles.showbackground = ConfigYesNo(default=False)
+
+	backtrans = [
+		("0", _("No transparency")),
+		("12", "5%"),
+		("25", "10%"),
+		("38", "15%"),
+		("50", "20%"),
+		("75", "30%"),
+		("100", "40%"),
+		("125", "50%"),
+		("150", "60%"),
+		("175", "70%"),
+		("200", "80%"),
+		("225", "90%"),
+		("255", _("Full transparency"))]
+	config.subtitles.subtitle_backtrans = ConfigSelection(default="255", choices=backtrans)
 
 	subtitle_delay_choicelist = []
 	for i in range(-900000, 1845000, 45000):
@@ -1112,7 +1133,7 @@ def InitUsageConfig():
 		else:
 			eDVBLocalTimeHandler.getInstance().setUseDVBTime(False)
 			eEPGCache.getInstance().timeUpdated()
-			if not os.path.islink('/etc/network/if-up.d/ntpdate-sync'):
+			if not islink('/etc/network/if-up.d/ntpdate-sync'):
 				Console().ePopen("echo '30 * * * *    /usr/bin/ntpdate-sync silent' >>/etc/cron/crontabs/root;ln -s /usr/bin/ntpdate-sync /etc/network/if-up.d/ntpdate-sync")
 	config.ntp.timesync = ConfigSelection(default="auto", choices=[
 		("auto", _("Auto")),
