@@ -1,6 +1,6 @@
 from Tools.Profile import profile
 from enigma import eServiceReference
-
+from Tools.Directories import fileExists
 # workaround for required config entry dependencies.
 import Screens.MovieSelection
 
@@ -18,7 +18,7 @@ from Screens.InfoBarGenerics import InfoBarShowHide, \
 	InfoBarSubserviceSelection, InfoBarShowMovies, InfoBarTimeshift,  \
 	InfoBarServiceNotifications, InfoBarPVRState, InfoBarCueSheetSupport, InfoBarBuffer, \
 	InfoBarSummarySupport, InfoBarMoviePlayerSummarySupport, InfoBarTimeshiftState, InfoBarTeletextPlugin, InfoBarExtensions, \
-	InfoBarSubtitleSupport, InfoBarPiP, InfoBarPlugins, InfoBarServiceErrorPopupSupport, InfoBarJobman, InfoBarPowersaver, \
+	InfoBarSubtitleSupport, InfoBarPiP, InfoBarPlugins, InfoBarServiceErrorPopupSupport, InfoBarJobman, InfoBarZoom, InfoBarPowersaver, \
 	InfoBarHDMI, InfoBarHdmi2, setResumePoint, delResumePoint
 from Screens.Hotkey import InfoBarHotkey
 
@@ -37,7 +37,7 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 	HelpableScreen, InfoBarAdditionalInfo, InfoBarNotifications, InfoBarDish, InfoBarUnhandledKey,
 	InfoBarSubserviceSelection, InfoBarTimeshift, InfoBarSeek, InfoBarCueSheetSupport, InfoBarBuffer,
 	InfoBarSummarySupport, InfoBarTimeshiftState, InfoBarTeletextPlugin, InfoBarExtensions,
-	InfoBarPiP, InfoBarPlugins, InfoBarSubtitleSupport, InfoBarServiceErrorPopupSupport, InfoBarJobman, InfoBarPowersaver,
+	InfoBarPiP, InfoBarPlugins, InfoBarSubtitleSupport, InfoBarServiceErrorPopupSupport, InfoBarJobman, InfoBarZoom, InfoBarPowersaver,
 	InfoBarHDMI, InfoBarHdmi2, InfoBarHotkey, InfoBarHandleBsod ,Screen):
 
 	ALLOW_SUSPEND = True
@@ -51,6 +51,8 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 				"showRadio": (self.showRadio, _("Show the radio player...")),
 				"showTv": (self.showTv, _("Show the tv player...")),
 				"toggleTvRadio": (self.toggleTvRadio, _("Toggle the tv and the radio player...")),
+				"ZoomInOut": (self.ZoomInOut, _("Zoom In/Out TV")),
+				"ZoomOff": (self.ZoomOff, _("Zoom Off"))
 			}, prio=2)
 
 		self.radioTV = 0
@@ -62,7 +64,7 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 				InfoBarInstantRecord, InfoBarAudioSelection, InfoBarRedButton, InfoBarTimerButton, InfoBarUnhandledKey, InfoBarVmodeButton,\
 				InfoBarAdditionalInfo, InfoBarNotifications, InfoBarDish, InfoBarSubserviceSelection, InfoBarBuffer, \
 				InfoBarTimeshift, InfoBarSeek, InfoBarCueSheetSupport, InfoBarSummarySupport, InfoBarTimeshiftState, \
-				InfoBarTeletextPlugin, InfoBarExtensions, InfoBarPiP, InfoBarSubtitleSupport, InfoBarHandleBsod, InfoBarJobman, InfoBarPowersaver, \
+				InfoBarTeletextPlugin, InfoBarExtensions, InfoBarPiP, InfoBarSubtitleSupport, InfoBarHandleBsod, InfoBarJobman,	InfoBarZoom, InfoBarPowersaver, \
 				InfoBarHdmi2, InfoBarPlugins, InfoBarServiceErrorPopupSupport, InfoBarHotkey:
 			x.__init__(self)
 
@@ -74,8 +76,11 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 			})
 
 		self.current_begin_time = 0
-		assert InfoBar.instance is None, "class InfoBar is a singleton class and just one instance of this class is allowed!"
+		if InfoBar.instance is not None:
+			raise AssertionError("class InfoBar is a singleton class and just one instance of this class is allowed!")
 		InfoBar.instance = self
+		self.zoomrate = 0
+		self.zoomin = 1
 
 	def __onClose(self):
 		InfoBar.instance = None
@@ -148,11 +153,41 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 	def openMoviePlayer(self, ref):
 		self.session.open(MoviePlayer, ref, slist=self.servicelist, lastservice=self.session.nav.getCurrentlyPlayingServiceOrGroup(), infobar=self)
 
+	def ZoomInOut(self):
+		zoomval = 0
+		if self.zoomrate > 3:
+			self.zoomin = 0
+		elif self.zoomrate < -9:
+			self.zoomin = 1
+
+		if self.zoomin == 1:
+			self.zoomrate += 1
+		else:
+			self.zoomrate -= 1
+
+		if self.zoomrate < 0:
+			zoomval = abs(self.zoomrate) + 10
+		else:
+			zoomval = self.zoomrate
+
+		print('[InfoBar] zoomRate:', self.zoomrate)
+		print('[InfoBar] zoomval:', zoomval)
+		if fileExists("/proc/stb/vmpeg/0/zoomrate"):
+			print("[InfoBar] Write to /proc/stb/vmpeg/0/zoomrate")
+			open("/proc/stb/vmpeg/0/zoomrate", "w").write(int(zoomval))
+
+	def ZoomOff(self):
+		self.zoomrate = 0
+		self.zoomin = 1
+		if fileExists("/proc/stb/vmpeg/0/zoomrate"):
+			print("[InfoBar] Write to /proc/stb/vmpeg/0/zoomrate")
+			open("/proc/stb/vmpeg/0/zoomrate", "w").write(str(0))
+
 
 class MoviePlayer(InfoBarBase, InfoBarShowHide, InfoBarMenu, InfoBarSeek, InfoBarShowMovies, InfoBarInstantRecord, InfoBarVmodeButton, InfoBarResolutionSelection, InfoBarAspectSelection,
 		InfoBarAudioSelection, HelpableScreen, InfoBarNotifications, InfoBarServiceNotifications, InfoBarPVRState,
 		InfoBarCueSheetSupport, InfoBarMoviePlayerSummarySupport, InfoBarSubtitleSupport, Screen, InfoBarTeletextPlugin,
-		InfoBarServiceErrorPopupSupport, InfoBarExtensions, InfoBarPlugins, InfoBarPiP, InfoBarHDMI, InfoBarHdmi2, InfoBarHotkey):
+		InfoBarServiceErrorPopupSupport, InfoBarExtensions, InfoBarPlugins, InfoBarPiP, InfoBarZoom, InfoBarHDMI, InfoBarHdmi2, InfoBarHotkey):
 
 	ENABLE_RESUME_SUPPORT = True
 	ALLOW_SUSPEND = True
@@ -178,12 +213,12 @@ class MoviePlayer(InfoBarBase, InfoBarShowHide, InfoBarMenu, InfoBarSeek, InfoBa
 		self.allowPiP = True
 
 		for x in HelpableScreen, InfoBarShowHide, InfoBarMenu, \
-				InfoBarBase, InfoBarSeek, InfoBarShowMovies, InfoBarInstantRecord, InfoBarVmodeButton,\
+				InfoBarBase, InfoBarSeek, InfoBarShowMovies, InfoBarInstantRecord, InfoBarVmodeButton, \
 				InfoBarAudioSelection, InfoBarNotifications, InfoBarResolutionSelection, InfoBarAspectSelection, \
 				InfoBarServiceNotifications, InfoBarPVRState, InfoBarCueSheetSupport, \
 				InfoBarMoviePlayerSummarySupport, InfoBarSubtitleSupport, \
 				InfoBarTeletextPlugin, InfoBarServiceErrorPopupSupport, InfoBarExtensions, \
-				InfoBarPlugins, InfoBarPiP, InfoBarHotkey:
+				InfoBarPlugins, InfoBarPiP, InfoBarZoom, InfoBarHotkey:
 			x.__init__(self)
 
 		self.servicelist = slist
