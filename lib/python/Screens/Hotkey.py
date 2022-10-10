@@ -118,7 +118,9 @@ class hotkey:
 		("VOD", "vod", ""),
 		("VOD" + " " + _("long"), "vod_long", ""),
 		("WWW Portal", "www", ""),
-		("WWW Portal" + " " + _("long"), "www_long", "")]
+		("WWW Portal" + " " + _("long"), "www_long", ""),
+		("ZOOM", "zoom", ""),
+		("ZOOM" + " " + _("long"), "zoom_long", "")]
 
 
 def getHotkeyFunctions():
@@ -185,6 +187,7 @@ def getHotkeyFunctions():
 	hotkey.functions.append((_("Toggle infoBar"), "Infobar/toggleShow", "InfoBar"))
 	hotkey.functions.append((_("Toggle videomode"), "Infobar/ToggleVideoMode", "InfoBar"))
 	hotkey.functions.append((_("Toggle subtitles show/hide"), "Infobar/toggleSubtitleShown", "InfoBar"))
+	hotkey.functions.append((_("Letterbox zoom"), "Infobar/vmodeSelection"))
 	if SystemInfo["PIPAvailable"]:
 		hotkey.functions.append((_("Show PiP"), "Infobar/showPiP", "InfoBar"))
 		hotkey.functions.append((_("Swap PiP"), "Infobar/swapPiP", "InfoBar"))
