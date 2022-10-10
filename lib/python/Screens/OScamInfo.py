@@ -16,7 +16,7 @@ from enigma import eTimer, RT_HALIGN_LEFT, eListboxPythonMultiContent, gFont, ge
 from xml.etree import ElementTree
 
 from operator import itemgetter
-import os
+from os.path import isfile
 import time
 # required methods: Request, urlopen, HTTPError, URLError, HTTPHandler, HTTPPasswordMgrWithDefaultRealm, HTTPDigestAuthHandler, build_opener, install_opener
 from urllib.request import urlopen, Request, HTTPHandler, HTTPPasswordMgrWithDefaultRealm, HTTPDigestAuthHandler, build_opener, install_opener
@@ -374,7 +374,7 @@ class OscamInfo:
 
 	def getECMInfo(self, ecminfo):
 		result = []
-		if os.path.exists(ecminfo):
+		if isfile(ecminfo):
 			data = open(ecminfo, "r").readlines()
 			for i in data:
 				if "caid" in i:
@@ -499,7 +499,7 @@ class OscamInfoMenu(Screen):
 				config.oscaminfo.userdatafromconf.save()
 				self.session.openWithCallback(self.ErrMsgCallback, MessageBox, _("File %s.conf not found.\nPlease enter username/password manually." % NAMEBIN), MessageBox.TYPE_ERROR)
 			elif entry == 0:
-				if os.path.exists("/tmp/ecm.info"):
+				if exists("/tmp/ecm.info"):
 					self.session.open(oscECMInfo)
 				else:
 					self.session.open(MessageBox, _("No ECM info is currently available. This is only available while decrypting."), MessageBox.TYPE_INFO)

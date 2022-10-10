@@ -1,5 +1,6 @@
 from os import path
 from fcntl import ioctl
+from os.path import isfile
 from struct import pack, unpack
 from time import time, localtime, gmtime
 
@@ -42,7 +43,7 @@ def setRTCoffset(forsleep=None):
 
 
 def setRTCtime(wutime):
-	if path.exists("/proc/stb/fp/rtc_offset"):
+	if isfile("/proc/stb/fp/rtc_offset"):
 		setRTCoffset()
 	try:
 		open("/proc/stb/fp/rtc", "w").write(str(wutime))

@@ -5,7 +5,6 @@ from Components.config import config, ConfigSlider, getConfigListEntry, ConfigYe
 from Components.Label import Label
 from Plugins.SystemPlugins.OSDPositionSetup.plugin import setPosition, setConfiguredPosition
 from enigma import quitMainloop, eTimer, getDesktop
-import os
 
 
 class OverscanWizard(Screen, ConfigListScreen):
@@ -124,7 +123,7 @@ class OverscanWizard(Screen, ConfigListScreen):
 			self.yes_no.value = True
 			self.list.append(getConfigListEntry(_("Do you want to quit the overscan wizard?"), self.yes_no))
 		elif self.step == 6:
-			config.skin.primary_skin.value = "PLi-HD/skin.xml"
+			config.skin.primary_skin.value = "PLi-FullHD/skin.xml"
 			config.save()
 			self["introduction"].setText(_("The user interface of the receiver will now restart to select the selected skin"))
 			quitMainloop(3)
@@ -149,10 +148,11 @@ class OverscanWizard(Screen, ConfigListScreen):
 			self.setPreviewPosition()
 
 	def keyGo(self):
+		from os.path import isfile
 		if self.step == 1:
 			self.step = self.yes_no.value and 5 or 2
 		elif self.step == 2:
-			self.step = self.yes_no.value and 5 or os.path.exists("/proc/stb/fb/dst_left") and 3 or 4
+			self.step = self.yes_no.value and 5 or isfile("/proc/stb/fb/dst_left") and 3 or 4
 		elif self.step == 3:
 			self.save_new_position = True
 			self.step = 5

@@ -560,7 +560,8 @@ class DVDPlayer(Screen, InfoBarBase, InfoBarNotifications, InfoBarSeek, InfoBarP
 			self.askLeavePlayer()
 		else:
 			isopathname = "/VIDEO_TS.ISO"
-			if os.path.exists(val + isopathname):
+			from os.path import exists
+			if exists(val + isopathname):
 				val += isopathname
 			newref = eServiceReference(4369, 0, val)
 			print("[DVD] play", newref.toString())

@@ -1,7 +1,8 @@
 from Plugins.Plugin import PluginDescriptor
 from Components.Harddisk import harddiskmanager
 from twisted.internet.protocol import Protocol, Factory
-import os
+from os import remove
+from os.path import isfile, exists
 
 # globals
 hotplugNotifier = []
@@ -42,13 +43,13 @@ def processHotplugData(self, v):
 		# Default setting is to save last playlist on closing Mediaplayer.
 		# If audio cd is removed after Mediaplayer was closed,
 	# the playlist remains in if no other media was played.
-		if os.path.isfile('/etc/enigma2/playlist.e2pls'):
+		if isfile('/etc/enigma2/playlist.e2pls'):
 			with open('/etc/enigma2/playlist.e2pls', 'r') as f:
 				file = f.readline().strip()
 		if file:
 			if '.cda' in file:
 				try:
-					os.remove('/etc/enigma2/playlist.e2pls')
+					remove('/etc/enigma2/playlist.e2pls')
 				except OSError:
 					pass
 		harddiskmanager.removeHotplugPartition(dev)
@@ -91,7 +92,8 @@ def autostart(reason, **kwargs):
 	if reason == 0:
 		from twisted.internet import reactor
 		try:
-			os.remove("/tmp/hotplug.socket")
+			if exists("/tmp/hotplug.socket"):
+				remove("/tmp/hotplug.socket")
 		except OSError:
 			pass
 		factory = Factory()

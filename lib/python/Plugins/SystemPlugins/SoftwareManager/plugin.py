@@ -1,4 +1,5 @@
-import os
+from os import mkdir, stat, access, F_OK, R_OK, W_OK, makedirs, listdir, unlink
+from os.path import exists, isfile, dirname, isdir
 import time
 import pickle
 from Plugins.Plugin import PluginDescriptor
@@ -51,9 +52,9 @@ config.plugins.softwaremanager.epgcache = ConfigYesNo(default=False)
 
 def write_cache(cache_file, cache_data):
 	try:
-		path = os.path.dirname(cache_file)
-		if not os.path.isdir(path):
-			os.mkdir(path)
+		path = dirname(cache_file)
+		if not isdir(path):
+			mkdir(path)
 		pickle.dump(cache_data, open(cache_file, 'wb'), -1)
 	except Exception as ex:
 		print("[SoftwareManager] Failed to write cache data to %s:" % cache_file, ex)
@@ -62,7 +63,7 @@ def write_cache(cache_file, cache_data):
 def valid_cache(cache_file, cache_ttl):
 	#See if the cache file exists and is still living
 	try:
-		mtime = os.stat(cache_file)[os.stat.ST_MTIME]
+		mtime = stat(cache_file)[stat.ST_MTIME]
 	except:
 		return 0
 	curr_time = time.time()
@@ -269,7 +270,7 @@ class UpdatePluginMenu(Screen):
 				elif (currentEntry == "backuplocation"):
 					parts = [(r.description, r.mountpoint, self.session) for r in harddiskmanager.getMountedPartitions(onlyhotplug=False)]
 					for x in parts:
-						if not os.access(x[1], os.F_OK | os.R_OK | os.W_OK) or x[1] == '/':
+						if not access(x[1], F_OK | R_OK | W_OK) or x[1] == '/':
 							parts.remove(x)
 					if len(parts):
 						self.session.openWithCallback(self.backuplocation_choosen, ChoiceBox, title=_("Please select medium to use as backup location"), list=parts)
@@ -304,8 +305,8 @@ class UpdatePluginMenu(Screen):
 		print("[SoftwareManager] Creating backup folder if not already there...")
 		self.backuppath = getBackupPath()
 		try:
-			if not os.path.exists(self.backuppath):
-				os.makedirs(self.backuppath)
+			if not exists(self.backuppath):
+				makedirs(self.backuppath)
 		except OSError:
 			self.session.open(MessageBox, _("Sorry, your backup destination is not writeable.\nPlease select a different one."), MessageBox.TYPE_INFO, timeout=10)
 
@@ -731,7 +732,7 @@ class PluginManager(Screen, PackageInfoHandler):
 			if self.currList == "packages":
 				if current[7] != '':
 					detailsfile = iSoftwareTools.directory[0] + "/" + current[1]
-					if os.path.exists(detailsfile):
+					if exists(detailsfile):
 						self.saved_currentSelectedPackage = self.currentSelectedPackage
 						self.session.openWithCallback(self.detailsClosed, PluginDetails, self.skin_path, current)
 					else:
@@ -861,7 +862,7 @@ class PluginManager(Screen, PackageInfoHandler):
 		if self.selectedFiles and len(self.selectedFiles):
 			for plugin in self.selectedFiles:
 				detailsfile = iSoftwareTools.directory[0] + "/" + plugin[0]
-				if os.path.exists(detailsfile):
+				if exists(detailsfile):
 					iSoftwareTools.fillPackageDetails(plugin[0])
 					self.package = iSoftwareTools.packageDetails[0]
 					if "attributes" in self.package[0]:
@@ -1204,7 +1205,7 @@ class PluginDetails(Screen, PackageInfoHandler):
 
 		if thumbnailUrl is not None:
 			self.thumbnail = "/tmp/" + thumbnailUrl.split('/')[-1]
-			print("[PluginDetails] downloading screenshot " + thumbnailUrl + " to " + self.thumbnail)
+			print("[SoftwareManager] downloading screenshot " + thumbnailUrl + " to " + self.thumbnail)
 			if iSoftwareTools.NetworkConnectionAvailable:
 				client.downloadPage(thumbnailUrl, self.thumbnail).addCallback(self.setThumbnail).addErrback(self.fetchFailed)
 			else:
@@ -1331,10 +1332,10 @@ class OPKGMenu(Screen):
 	def fill_list(self):
 		flist = []
 		self.path = '/etc/opkg/'
-		if not os.path.exists(self.path):
+		if not exists(self.path):
 			self.entry = False
 			return
-		for file in os.listdir(self.path):
+		for file in listdir(self.path):
 			if file.endswith(".conf"):
 				if file not in ('arch.conf', 'opkg.conf'):
 					flist.append((file))
@@ -1545,8 +1546,8 @@ class PacketManager(Screen, NumericalTextInput):
 		self.close()
 
 	def reload(self):
-		if os.path.exists(self.cache_file):
-			os.unlink(self.cache_file)
+		if exists(self.cache_file):
+			unlink(self.cache_file)
 			self.list_updating = True
 			self.rebuildList()
 

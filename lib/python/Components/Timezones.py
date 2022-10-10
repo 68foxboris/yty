@@ -2,6 +2,7 @@ from errno import ENOENT
 from xml.etree.ElementTree import ParseError, parse
 
 from os import environ, path, symlink, unlink, walk
+from os.path import exists, isfile, join as pathjoin, realpath
 from time import gmtime, localtime, strftime, time
 
 from Components.config import ConfigSelection, ConfigSubsection, config
@@ -46,7 +47,7 @@ def InitTimeZones():
 	if not config.timezone.area.value and config.timezone.val.value.find("/") == -1:
 		config.timezone.area.value = "Generic"
 	try:
-		tzLink = path.realpath("/etc/localtime")[20:]
+		tzLink = realpath("/etc/localtime")[20:]
 		msgs = []
 		if config.timezone.area.value == "Classic":
 			if config.timezone.val.value != tzLink:
@@ -191,7 +192,7 @@ class Timezones:
 			for zone in root.findall("zone"):
 				name = zone.get("name", "")
 				zonePath = zone.get("zone", "")
-				if path.exists(path.join(TIMEZONE_DATA, zonePath)):
+				if exists(pathjoin(TIMEZONE_DATA, zonePath)):
 					zones.append((zonePath, name))
 				else:
 					print("[Timezones] Warning: Classic time zone '%s' (%s) is not available in '%s'!" % (name, zonePath, TIMEZONE_DATA))
@@ -231,11 +232,11 @@ class Timezones:
 
 	def activateTimezone(self, zone, area, runCallbacks=True):
 		tz = zone if area in ("Classic", "Generic") else path.join(area, zone)
-		file = path.join(TIMEZONE_DATA, tz)
-		if not path.isfile(file):
+		file = pathjoin(TIMEZONE_DATA, tz)
+		if not isfile(file):
 			print("[Timezones] Error: The time zone '%s' is not available!  Using 'UTC' instead." % tz)
 			tz = "UTC"
-			file = path.join(TIMEZONE_DATA, tz)
+			file = pathjoin(TIMEZONE_DATA, tz)
 		print("[Timezones] Setting time zone to '%s'." % tz)
 		try:
 			unlink("/etc/localtime")
@@ -257,7 +258,7 @@ class Timezones:
 		except Exception:
 			from enigma import e_tzset
 			e_tzset()
-		if path.exists("/proc/stb/fp/rtc_offset"):
+		if exists("/proc/stb/fp/rtc_offset"):
 			setRTCoffset()
 		now = int(time())
 		timeFormat = "%a %d-%b-%Y %H:%M:%S"

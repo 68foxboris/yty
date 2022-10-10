@@ -3,7 +3,6 @@ from enigma import eDVBCIInterfaces, eDVBCI_UI, eEnv, eServiceCenter, eServiceRe
 from Components.SystemInfo import SystemInfo
 from Components.config import config
 import NavigationInstance
-import os
 
 
 class CIHelper:
@@ -26,8 +25,8 @@ class CIHelper:
 
 			for ci in range(NUM_CI):
 				filename = eEnv.resolve("${sysconfdir}/enigma2/ci") + str(ci) + ".xml"
-
-				if not os.path.exists(filename):
+				from os.path import exists
+				if not exists(filename):
 					continue
 
 				try:
@@ -66,7 +65,8 @@ class CIHelper:
 				except:
 					print("[CIHelper] CI_ASSIGNMENT %d ERROR parsing xml..." % ci)
 					try:
-						os.remove(filename)
+						from os import remove
+						remove(filename)
 					except:
 						print("[CIHelper] CI_ASSIGNMENT %d ERROR remove damaged xml..." % ci)
 			if self.CI_ASSIGNMENT_LIST:

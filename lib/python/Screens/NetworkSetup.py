@@ -1,4 +1,5 @@
-import os
+from os import unlink, makedirs, listdir
+from os.path import isfile, exists
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Screens.HelpMenu import HelpableScreen
@@ -111,10 +112,10 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			self["introduction"].setText(self.edittext)
 			self["DefaultInterfaceAction"].setEnabled(False)
 
-		if num_configured_if < 2 and os.path.exists("/etc/default_gw"):
-			os.unlink("/etc/default_gw")
+		if num_configured_if < 2 and isfile("/etc/default_gw"):
+			unlink("/etc/default_gw")
 
-		if os.path.exists("/etc/default_gw"):
+		if isfile("/etc/default_gw"):
 			fp = open('/etc/default_gw', 'r')
 			result = fp.read()
 			fp.close()
@@ -131,7 +132,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 				active_int = False
 			self.list.append(self.buildInterfaceList(x[1], _(x[0]), default_int, active_int))
 
-		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			self["key_blue"].setText(_("Network wizard"))
 		self["list"].setList(self.list)
 
@@ -140,7 +141,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 		num_if = len(self.list)
 		old_default_gw = None
 		num_configured_if = len(iNetwork.getConfiguredAdapters())
-		if os.path.exists("/etc/default_gw"):
+		if isfile("/etc/default_gw"):
 			fp = open('/etc/default_gw', 'r')
 			old_default_gw = fp.read()
 			fp.close()
@@ -150,7 +151,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			fp.close()
 			self.restartLan()
 		elif old_default_gw and num_configured_if < 2:
-			os.unlink("/etc/default_gw")
+			unlink("/etc/default_gw")
 			self.restartLan()
 
 	def okbuttonClick(self):
@@ -187,7 +188,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			self.session.open(MessageBox, _("Finished configuring your network"), type=MessageBox.TYPE_INFO, timeout=10, default=False)
 
 	def openNetworkWizard(self):
-		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			try:
 				from Plugins.SystemPlugins.NetworkWizard.NetworkWizard import NetworkWizard
 			except ImportError as e:
@@ -415,7 +416,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			self.encryptionlist.append(("Unencrypted", _("Unencrypted")))
 			self.encryptionlist.append(("WEP", "WEP"))
 			self.encryptionlist.append(("WPA", "WPA"))
-			if not os.path.exists("/tmp/bcm/" + self.iface):
+			if not exists("/tmp/bcm/" + self.iface):
 				self.encryptionlist.append(("WPA/WPA2", "WPA/WPA2"))
 			self.encryptionlist.append(("WPA2", "WPA2"))
 			self.weplist = []
@@ -471,7 +472,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 						self.extended = callFnc
 						if "configStrings" in p.fnc:
 							self.configStrings = p.fnc["configStrings"]
-						isExistBcmWifi = os.path.exists("/tmp/bcm/" + self.iface)
+						isExistBcmWifi = exists("/tmp/bcm/" + self.iface)
 						if not isExistBcmWifi:
 							self.hiddenSSID = getConfigListEntry(_("Hidden network"), config.plugins.wlan.hiddenessid)
 							self.list.append(self.hiddenSSID)
@@ -871,7 +872,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 					self.extendedSetup = ('extendedSetup', menuEntryDescription, self.extended)
 					menu.append((menuEntryName, self.extendedSetup))
 
-		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			menu.append((_("Network wizard"), "openwizard"))
 
 		return menu

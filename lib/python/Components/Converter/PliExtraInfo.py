@@ -167,9 +167,25 @@ class PliExtraInfo(Poll, Converter):
 		fps = (info.getInfo(iServiceInformation.sFrameRate) + 500) // 1000
 		if not fps or fps == -1:
 			try:
-				fps = (int(open("/proc/stb/vmpeg/0/framerate", "r").read()) + 500) // 1000
+				from os.path import isfile
+				if isfile("/proc/stb/vmpeg/0/framerate"):
+					print("[PliExtraInfo] Read /proc/stb/vmpeg/0/framerate")
+					fps = (int(open("/proc/stb/vmpeg/0/framerate", "r").read()) + 500) // 1000
+				elif isfile("/proc/stb/vmpeg/0/fallback_framerate"):
+					print("[PliExtraInfo] Read /proc/stb/vmpeg/0/fallback_framerate")
+					fps = (int(open("/proc/stb/vmpeg/0/fallback_framerate", "r").read()) + 0) // 1000
 			except:
-				pass
+				print("[PliExtraInfo] Read framerate failed.")
+		if not mode:
+			try:
+				print("[PliExtraInfo] Read /proc/stb/vmpeg/0/progressive")
+				mod = int(open("/proc/stb/vmpeg/0/progressive", "r").read())
+				if mod == 1:
+					mode = "p"
+				else:
+					mode = "i"
+			except:
+				print("[PliExtraInfo] Read /proc/stb/vmpeg/0/progressive failed.")
 		return "%sx%s%s%s" % (xres, yres, mode, fps)
 
 	def createGamma(self, info):
