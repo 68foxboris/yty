@@ -1,4 +1,4 @@
-import os
+from os.path import isfile
 import struct
 import RecordTimer
 import Components.ParentalControl
@@ -55,7 +55,7 @@ class StandbyScreen(Screen):
 
 		print("[Standby] enter standby")
 
-		if os.path.exists("/usr/script/standby_enter.sh"):
+		if isfile("/usr/script/standby_enter.sh"):
 			Console().ePopen("/usr/script/standby_enter.sh")
 
 		self["actions"] = ActionMap(["StandbyActions"],
@@ -150,7 +150,7 @@ class StandbyScreen(Screen):
 			RecordTimer.RecordTimerEntry.stopTryQuitMainloop()
 		self.avswitch.setInput("ENCODER")
 		self.leaveMute()
-		if os.path.exists("/usr/script/standby_leave.sh"):
+		if exists("/usr/script/standby_leave.sh"):
 			Console().ePopen("/usr/script/standby_leave.sh")
 		if config.usage.remote_fallback_import_standby.value:
 			ImportChannels()
@@ -339,7 +339,7 @@ class TryQuitMainloop(MessageBox):
 			if self.retval == QUIT_SHUTDOWN:
 				config.misc.DeepStandby.value = True
 				if not inStandby:
-					if os.path.exists("/usr/script/standby_enter.sh"):
+					if isfile("/usr/script/standby_enter.sh"):
 						Console().ePopen("/usr/script/standby_enter.sh")
 					if SystemInfo["HasHDMI-CEC"] and config.hdmicec.enabled.value and ((config.hdmicec.control_tv_standby.value and config.hdmicec.next_boxes_detect.value) or config.hdmicec.handle_deepstandby_events.value != "no"):
 						if config.hdmicec.control_tv_standby.value and config.hdmicec.next_boxes_detect.value:
