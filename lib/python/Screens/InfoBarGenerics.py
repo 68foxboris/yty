@@ -46,6 +46,7 @@ from enigma import eTimer, eServiceCenter, eDVBServicePMTHandler, iServiceInform
 
 from time import time, localtime, strftime
 import os
+from os.path import isfile, splitext
 from bisect import insort
 from sys import maxsize
 import itertools
@@ -140,7 +141,7 @@ class whitelist:
 
 
 def reload_whitelist_vbi():
-	whitelist.vbi = [line.strip() for line in open('/etc/enigma2/whitelist_vbi', 'r').readlines()] if os.path.isfile('/etc/enigma2/whitelist_vbi') else []
+	whitelist.vbi = [line.strip() for line in open('/etc/enigma2/whitelist_vbi', 'r').readlines()] if isfile('/etc/enigma2/whitelist_vbi') else []
 
 
 reload_whitelist_vbi()
@@ -154,7 +155,7 @@ def reload_subservice_groupslist(force=False):
 	if subservice.groupslist is None or force:
 		try:
 			groupedservices = "/etc/enigma2/groupedservices"
-			if not os.path.isfile(groupedservices):
+			if not isfile(groupedservices):
 				groupedservices = "/usr/share/enigma2/groupedservices"
 			subservice.groupslist = [list(g) for k, g in itertools.groupby([line.split('#')[0].strip() for line in open(groupedservices).readlines()], lambda x:not x) if not k]
 		except:
@@ -1643,7 +1644,7 @@ class InfoBarSeek:
 			self.setSeekState(self.SEEK_STATE_PAUSE)
 
 	def unPauseService(self):
-		print("unpause")
+		print("[InfoBarGenerics] unpause")
 		if self.seekstate == self.SEEK_STATE_PLAY:
 			return 0
 		self.setSeekState(self.SEEK_STATE_PLAY)
@@ -2667,7 +2668,7 @@ class InfoBarInstantRecord:
 	def startInstantRecording(self, limitEvent=False):
 		begin = int(time())
 		end = begin + 3600      # dummy
-		name = "instant record"
+		name = _("Instant record")
 		info = {}
 
 		self.getProgramInfoAndEvent(info, name)
@@ -3195,7 +3196,7 @@ class InfoBarResolutionSelection:
 
 		# do we need a new sorting with this way here or should we disable some choices?
 		choices = []
-		if os.path.exists("/proc/stb/video/videomode_choices"):
+		if exists("/proc/stb/video/videomode_choices"):
 			print("[InfoBarGenerics] Read /proc/stb/video/videomode_choices")
 			f = open("/proc/stb/video/videomode_choices")
 			values = f.readline().replace("\n", "").replace("pal ", "").replace("ntsc ", "").split(" ", -1)
@@ -3216,7 +3217,7 @@ class InfoBarResolutionSelection:
 
 		keys = ["green", "yellow", "blue", "", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
-		if os.path.exists("/proc/stb/video/videomode"):
+		if exists("/proc/stb/video/videomode"):
 			print("[InfoBarGenerics] Read /proc/stb/video/videomode")
 			mode = open("/proc/stb/video/videomode").read()[:-1]
 		print(mode)
@@ -3914,6 +3915,45 @@ class InfoBarPowersaver:
 			self.session.open(Screens.Standby.Standby)
 
 
+class InfoBarZoom:
+	def __init__(self):
+		self.zoomrate = 0
+		self.zoomin = 1
+
+		self["ZoomActions"] = HelpableActionMap(self, ["InfobarZoomActions"], {
+			"ZoomInOut": (self.ZoomInOut, _("Zoom In/Out TV...")),
+			"ZoomOff": (self.ZoomOff, _("Zoom Off...")),
+		}, prio=2, description=_("Zoom Actions"))
+
+	def ZoomInOut(self):
+		zoomval = 0
+		if self.zoomrate > 3:
+			self.zoomin = 0
+		elif self.zoomrate < -9:
+			self.zoomin = 1
+
+		if self.zoomin == 1:
+			self.zoomrate += 1
+		else:
+			self.zoomrate -= 1
+
+		if self.zoomrate < 0:
+			zoomval = abs(self.zoomrate) + 10
+		else:
+			zoomval = self.zoomrate
+
+		if fileExists("/proc/stb/vmpeg/0/zoomrate"):
+			print("[InfoBarGenerics] Write to /proc/stb/vmpeg/0/zoomrate")
+			open("/proc/stb/vmpeg/0/zoomrate", "w").write(int(zoomval))
+
+	def ZoomOff(self):
+		self.zoomrate = 0
+		self.zoomin = 1
+		if fileExists("/proc/stb/vmpeg/0/zoomrate"):
+			print("[InfoBarGenerics] Write to /proc/stb/vmpeg/0/zoomrate")
+			open("/proc/stb/vmpeg/0/zoomrate", "w").write(str(0))
+
+
 class InfoBarHDMI:
 	def HDMIIn(self):
 		slist = self.servicelist
@@ -3926,7 +3966,7 @@ class InfoBarHDMI:
 		else:
 			curref = self.session.nav.getCurrentlyPlayingServiceOrGroup()
 			if curref and curref.type != eServiceReference.idServiceHDMIIn:
-				if curref and curref.type != -1 and os.path.splitext(curref.toString().split(":")[10])[1].lower() in AUDIO_EXTENSIONS.union(MOVIE_EXTENSIONS, DVD_EXTENSIONS):
+				if curref and curref.type != -1 and splitext(curref.toString().split(":")[10])[1].lower() in AUDIO_EXTENSIONS.union(MOVIE_EXTENSIONS, DVD_EXTENSIONS):
 					setResumePoint(self.session)
 				self.session.nav.playService(hdmiInServiceRef())
 			elif isStandardInfoBar(self):
