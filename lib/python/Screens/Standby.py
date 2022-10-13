@@ -150,7 +150,7 @@ class StandbyScreen(Screen):
 			RecordTimer.RecordTimerEntry.stopTryQuitMainloop()
 		self.avswitch.setInput("ENCODER")
 		self.leaveMute()
-		if exists("/usr/script/standby_leave.sh"):
+		if isfile("/usr/script/standby_leave.sh"):
 			Console().ePopen("/usr/script/standby_leave.sh")
 		if config.usage.remote_fallback_import_standby.value:
 			ImportChannels()

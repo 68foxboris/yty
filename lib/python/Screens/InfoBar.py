@@ -76,8 +76,7 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 			})
 
 		self.current_begin_time = 0
-		if InfoBar.instance is not None:
-			raise AssertionError("class InfoBar is a singleton class and just one instance of this class is allowed!")
+		assert InfoBar.instance is None, "class InfoBar is a singleton class and just one instance of this class is allowed!"
 		InfoBar.instance = self
 		self.zoomrate = 0
 		self.zoomin = 1
