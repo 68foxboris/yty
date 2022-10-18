@@ -18,22 +18,28 @@ from Components.Pixmap import MultiPixmap, Pixmap
 from Components.Network import iNetwork
 from Tools.Directories import SCOPE_PLUGINS, resolveFilename, isPluginInstalled
 from Tools.StbHardware import getFPVersion
+from Tools.HardwareInfo import HardwareInfo
+from Tools.Directories import fileExists, pathExists
 from Tools.Geolocation import geolocation
-from enigma import eTimer, eLabel, eConsoleAppContainer, getDesktop, eGetEnigmaDebugLvl
+from enigma import eTimer, eLabel, eConsoleAppContainer, eDVBResourceManager, getDesktop, eGetEnigmaDebugLvl
 
 from Components.GUIComponent import GUIComponent
 from skin import applySkinFactor, parameters, parseScale
 
-import os
+from os import listdir, popen, remove
+from os.path import getmtime, isfile, join as pathjoin
 import glob
 
 API_GITHUB = 0
 API_GITLAB = 1
 
+model = HardwareInfo().get_device_model()
+
+
 class About(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		self.setTitle(_("About"))
+		self.setTitle(_("About Information"))
 		self["key_green"] = Button(_("Translations"))
 		self["key_red"] = Button(_("Latest Commits"))
 		self["key_yellow"] = Button(_("Dmesg Info"))
@@ -57,7 +63,7 @@ class About(Screen):
 			EnigmaVersion = EnigmaVersion[0] + " (" + EnigmaVersion[2] + "-" + EnigmaVersion[1] + ")"
 		else:
 			EnigmaVersion = EnigmaVersion[0] + " (" + EnigmaVersion[1] + ")"
-		EnigmaVersion = _("Enigma version: ") + EnigmaVersion
+		EnigmaVersion = _("Enigma2 version: ") + EnigmaVersion
 		self["EnigmaVersion"] = StaticText(EnigmaVersion)
 		AboutText += "\n" + EnigmaVersion + "\n"
 
@@ -76,7 +82,7 @@ class About(Screen):
 		AboutText += _("Python version: ") + about.getPythonVersionString() + "\n"
 		AboutText += _("GCC version: ") + about.getGccVersion() + "\n"
 		AboutText += _("OpenSSL version: ") + about.getOpenSSLVersion() + "\n"
-		AboutText += _("Enigma (re)starts: %d\n") % config.misc.startCounter.value
+		AboutText += _("Enigma2 (re)starts: %d\n") % config.misc.startCounter.value
 		AboutText += _("Enigma2 debug level: %d\n") % eGetEnigmaDebugLvl() + "\n"
 
 		fp_version = getFPVersion()
@@ -129,11 +135,9 @@ class About(Screen):
 		AboutText += "\n"
 		AboutText += _("Uptime: ") + about.getBoxUptime() + "\n"
 
-
-
-
 		self["TunerHeader"] = StaticText(_("Detected NIMs:"))
-		AboutText += "\n" + _("Detected NIMs:") + "\n"
+		AboutText += "\n"
+		AboutText += _("Detected NIMs:") + "\n"
 
 		nims = nimmanager.nimListCompressed()
 		for count in range(len(nims)):
@@ -143,13 +147,14 @@ class About(Screen):
 				self["Tuner" + str(count)] = StaticText("")
 			AboutText += nims[count] + "\n"
 
-		self["HDDHeader"] = StaticText(_("Detected storage devices:"))
-		AboutText += "\n" + _("Detected storage devices:") + "\n"
+		self["HDDHeader"] = StaticText(_("Detected HDD:"))
+		AboutText += "\n"
+		AboutText += _("Detected HDD:") + "\n"
 
 		hddlist = harddiskmanager.HDDList()
 		hddinfo = ""
 		if hddlist:
-			formatstring = hddsplit and "%s:%s, %.1f %s %s" or "%s\n(%s, %.1f %s %s)"
+			formatstring = hddsplit and "%s:%s, %.1f %sB %s" or "%s\n(%s, %.1f %sB %s)"
 			for count in range(len(hddlist)):
 				if hddinfo:
 					hddinfo += "\n"
@@ -166,6 +171,11 @@ class About(Screen):
 			AboutText += "\n" + x[0] + ": " + x[1]
 
 		self["AboutScrollLabel"] = ScrollLabel(AboutText)
+		self["key_green"] = Button(_("Translations"))
+		self["key_red"] = Button(_("Latest Commits"))
+		self["key_yellow"] = Button(_("Troubleshoot"))
+		self["key_blue"] = Button(_("Memory Info"))
+
 		self["actions"] = ActionMap(["ColorActions", "SetupActions", "DirectionActions"], {
 			"cancel": self.close,
 			"ok": self.close,
@@ -193,10 +203,9 @@ class About(Screen):
 class Geolocation(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		self.setTitle(_("Geolocation"))
 		self.setTitle(_("Geolocation Information"))
 
-		GeolocationText = _("Information about your Geolocation data") + "\n"
+		GeolocationText = _("Geolocation information") + "\n"
 		self["key_red"] = Button(_("Close"))
 		GeolocationText += "\n"
 
@@ -206,25 +215,25 @@ class Geolocation(Screen):
 			if isinstance(continent, text_type):
 				continent = ensure_str(continent.encode(encoding="UTF-8", errors="ignore"))
 			if continent != None:
-				GeolocationText += _("Continent: ") + "\t" + continent + "\n"
+				GeolocationText += _("Continent: ") + continent + "\n"
 
 			country = geolocationData.get("country", None)
 			if isinstance(country, text_type):
 				country = ensure_str(country.encode(encoding="UTF-8", errors="ignore"))
 			if country != None:
-				GeolocationText += _("Country: ") + "\t" + country + "\n"
+				GeolocationText += _("Country: ") + country + "\n"
 
 			state = geolocationData.get("regionName", None)
 			if isinstance(state, text_type):
 				state = ensure_str(state.encode(encoding="UTF-8", errors="ignore"))
 			if state != None:
-				GeolocationText += _("RegionName: ") + "\t" + state + "\n"
+				GeolocationText += _("RegionName: ") + state + "\n"
 
 			city = geolocationData.get("city", None)
 			if isinstance(city, text_type):
 				city = ensure_str(city.encode(encoding="UTF-8", errors="ignore"))
 			if city != None:
-				GeolocationText += _("City: ") + "\t" + city + "\n"
+				GeolocationText += _("City: ") + city + "\n"
 
 			GeolocationText += "\n"
 
@@ -232,23 +241,23 @@ class Geolocation(Screen):
 			if isinstance(timezone, text_type):
 				timezone = ensure_str(timezone.encode(encoding="UTF-8", errors="ignore"))
 			if timezone != None:
-				GeolocationText += _("Timezone: ") + "\t" + timezone + "\n"
+				GeolocationText += _("Timezone: ") + timezone + "\n"
 
 			currency = geolocationData.get("currency", None)
 			if isinstance(currency, text_type):
 				currency = ensure_str(currency.encode(encoding="UTF-8", errors="ignore"))
 			if currency != None:
-				GeolocationText += _("Currency: ") + "\t" + currency + "\n"
+				GeolocationText += _("Currency: ") + currency + "\n"
 
 			GeolocationText += "\n"
 
 			latitude = geolocationData.get("lat", None)
 			if str(float(latitude)) != None:
-				GeolocationText += _("Latitude: ") + "\t" + str(float(latitude)) + "\n"
+				GeolocationText += _("Latitude: ") + str(float(latitude)) + "\n"
 
 			longitude = geolocationData.get("lon", None)
 			if str(float(longitude)) != None:
-				GeolocationText += _("Longitude: ") + "\t" + str(float(longitude)) + "\n"
+				GeolocationText += _("Longitude: ") + str(float(longitude)) + "\n"
 			self["AboutScrollLabel"] = ScrollLabel(GeolocationText)
 		except Exception as err:
 			self["AboutScrollLabel"] = ScrollLabel(_("Requires internet connection"))
@@ -267,9 +276,7 @@ class Geolocation(Screen):
 class Devices(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		screentitle = _("Devices")
-		title = screentitle
-		Screen.setTitle(self, title)
+		self.setTitle(_("Device Information"))
 		self["TunerHeader"] = StaticText(_("Detected tuners:"))
 		self["HDDHeader"] = StaticText(_("Detected devices:"))
 		self["MountsHeader"] = StaticText(_("Network servers:"))
@@ -282,10 +289,10 @@ class Devices(Screen):
 		self.activityTimer = eTimer()
 		self.activityTimer.timeout.get().append(self.populate2)
 		self["key_red"] = Button(_("Close"))
-		self["actions"] = ActionMap(["SetupActions", "ColorActionsAbout", "TimerEditActions"], {
+		self["actions"] = ActionMap(["SetupActions", "ColorActions", "TimerEditActions"], {
 			"cancel": self.close,
-			"red": self.close,
-			"save": self.close,
+			"ok": self.close,
+			"red": self.close
 		})
 		self.onLayoutFinish.append(self.populate)
 
@@ -312,7 +319,7 @@ class Devices(Screen):
 		self["nims"].setText(niminfo)
 
 		nims = nimmanager.nimList()
-		if len(nims) <= 4 :
+		if len(nims) <= 4:
 			for count in (0, 1, 2, 3):
 				if count < len(nims):
 					self["Tuner" + str(count)].setText(nims[count])
@@ -329,7 +336,11 @@ class Devices(Screen):
 				if desc_list and desc_list[cur_idx]['desc'] == desc:
 					desc_list[cur_idx]['end'] = idx
 				else:
-					desc_list.append({'desc' : desc, 'start' : idx, 'end' : idx})
+					desc_list.append({
+						'desc': desc,
+						'start': idx,
+						'end': idx
+					})
 					cur_idx += 1
 				count += 1
 
@@ -395,9 +406,7 @@ class Devices(Screen):
 class SystemNetworkInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		screentitle = _("Network")
-		title = screentitle
-		Screen.setTitle(self, title)
+		self.setTitle(_("Network Information"))
 		self.skinName = ["SystemNetworkInfo", "WlanStatus"]
 		self["LabelBSSID"] = StaticText()
 		self["LabelESSID"] = StaticText()
@@ -431,16 +440,18 @@ class SystemNetworkInfo(Screen):
 				from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
 
 				self.iStatus = iStatus
-			except:
+			except ImportError as err:
 				pass
 			self.resetList()
 			self.onClose.append(self.cleanup)
+
 		self["key_red"] = StaticText(_("Close"))
+
 		self["actions"] = ActionMap(["SetupActions", "ColorActions", "DirectionActions"], {
 			"cancel": self.close,
 			"ok": self.close,
 			"up": self["AboutScrollLabel"].pageUp,
-			"down": self["AboutScrollLabel"].pageDown,
+			"down": self["AboutScrollLabel"].pageDown
 		})
 		self.onLayoutFinish.append(self.updateStatusbar)
 
@@ -449,51 +460,52 @@ class SystemNetworkInfo(Screen):
 		self.iface = "eth0"
 		eth0 = about.getIfConfig('eth0')
 		if 'addr' in eth0:
-			self.AboutText += _("IP:") + "\t" + "\t" + eth0['addr'] + "\n"
+			self.AboutText += _("IP:") + "\t" + eth0['addr'] + "\n"
 			if 'netmask' in eth0:
 				self.AboutText += _("Netmask:") + "\t" + eth0['netmask'] + "\n"
 			if 'hwaddr' in eth0:
-				self.AboutText += _("MAC:") + "\t" + "\t" + eth0['hwaddr'] + "\n"
+				self.AboutText += _("MAC:") + "\t" + eth0['hwaddr'] + "\n"
 			self.iface = 'eth0'
 
 		eth1 = about.getIfConfig('eth1')
 		if 'addr' in eth1:
-			self.AboutText += _("IP:") + "\t" + "\t" + eth1['addr'] + "\n"
+			self.AboutText += _("IP:") + "\t" + eth1['addr'] + "\n"
 			if 'netmask' in eth1:
 				self.AboutText += _("Netmask:") + "\t" + eth1['netmask'] + "\n"
 			if 'hwaddr' in eth1:
-				self.AboutText += _("MAC:") + "\t" + "\t" + eth1['hwaddr'] + "\n"
+				self.AboutText += _("MAC:") + "\t" + eth1['hwaddr'] + "\n"
 			self.iface = 'eth1'
 
 		ra0 = about.getIfConfig('ra0')
 		if 'addr' in ra0:
-			self.AboutText += _("IP:") + "\t" + "\t" + ra0['addr'] + "\n"
+			self.AboutText += _("IP:") + "\t" + ra0['addr'] + "\n"
 			if 'netmask' in ra0:
 				self.AboutText += _("Netmask:") + "\t" + ra0['netmask'] + "\n"
 			if 'hwaddr' in ra0:
-				self.AboutText += _("MAC:") + "\t" + "\t" + ra0['hwaddr'] + "\n"
+				self.AboutText += _("MAC:") + "\t" + ra0['hwaddr'] + "\n"
 			self.iface = 'ra0'
 
 		wlan0 = about.getIfConfig('wlan0')
 		if 'addr' in wlan0:
-			self.AboutText += _("IP:") + "\t" + "\t" + wlan0['addr'] + "\n"
+			self.AboutText += _("IP:") + "\t" + wlan0['addr'] + "\n"
 			if 'netmask' in wlan0:
 				self.AboutText += _("Netmask:") + "\t" + wlan0['netmask'] + "\n"
 			if 'hwaddr' in wlan0:
-				self.AboutText += _("MAC:") + "\t" + "\t" + wlan0['hwaddr'] + "\n"
+				self.AboutText += _("MAC:") + "\t" + wlan0['hwaddr'] + "\n"
 			self.iface = 'wlan0'
 
 		wlan3 = about.getIfConfig('wlan3')
 		if 'addr' in wlan3:
-			self.AboutText += _("IP:") + "\t" + "\t" + wlan3['addr'] + "\n"
+			self.AboutText += _("IP:") + "\t" + wlan3['addr'] + "\n"
 			if 'netmask' in wlan3:
 				self.AboutText += _("Netmask:") + "\t" + wlan3['netmask'] + "\n"
 			if 'hwaddr' in wlan3:
-				self.AboutText += _("MAC:") + "\t" + "\t" + wlan3['hwaddr'] + "\n"
+				self.AboutText += _("MAC:") + "\t" + wlan3['hwaddr'] + "\n"
 			self.iface = 'wlan3'
 
 		rx_bytes, tx_bytes = about.getIfTransferredData(self.iface)
-		self.AboutText += "\n" + _("Bytes received:") + "\t" + rx_bytes + "\n"
+		self.AboutText += "\n"
+		self.AboutText += _("Bytes received:") + "\t" + rx_bytes + "\n"
 		self.AboutText += _("Bytes sent:") + "\t" + tx_bytes + "\n"
 
 		geolocationData = geolocation.getGeolocationData(fields="isp,org,mobile,proxy,query", useCache=True)
@@ -506,25 +518,27 @@ class SystemNetworkInfo(Screen):
 		self.AboutText += "\n"
 		if isp != None:
 			if isporg != None:
-				self.AboutText += _("ISP: ") + "\t" + "\t" + isp + " " + (isporg) + "\n"
+				self.AboutText += _("ISP: ") + isp + " " + "(" + isporg + ")" + "\n"
 			else:
-				self.AboutText += "\n" + _("ISP: ") + "\t" + "\t" + isp + "\n"
+				self.AboutText += _("ISP: ") + isp + "\n"
 
 		mobile = geolocationData.get("mobile", False)
 		if mobile:
-			self.AboutText += _("Mobile: ") + "\t" + "\t" + _("Yes") + "\n"
+			self.AboutText += _("Mobile: ") + _("Yes") + "\n"
 		else:
-			self.AboutText += _("Mobile: ") + "\t" + "\t" + _("No") + "\n"
+			self.AboutText += _("Mobile: ") + _("No") + "\n"
 
 		proxy = geolocationData.get("proxy", False)
 		if proxy:
-			self.AboutText += _("Proxy: ") + "\t" + "\t" + _("Yes") + "\n"
+			self.AboutText += _("Proxy: ") + _("Yes") + "\n"
 		else:
-			self.AboutText += _("Proxy: ") + "\t" + "\t" + _("No") + "\n"
+			self.AboutText += _("Proxy: ") + _("No") + "\n"
 
 		publicip = geolocationData.get("query", None)
 		if str(publicip) != "":
-			self.AboutText += _("Public IP: ") + "\t" + "\t" + str(publicip) + "\n" + "\n"
+			self.AboutText += _("Public IP: ") + str(publicip) + "\n"
+
+		self.AboutText += "\n"
 
 		self.console = Console()
 		self.console.ePopen('ethtool %s' % self.iface, self.SpeedFinished)
@@ -534,10 +548,12 @@ class SystemNetworkInfo(Screen):
 		for line in result_tmp:
 			if 'Speed:' in line:
 				speed = line.split(': ')[1][:-4]
-				self.AboutText += _("Speed:") + "\t" + "\t" + speed + _('Mb/s')
+				self.AboutText += _("Speed:") + "\t" + speed + _('Mb/s')
 
+		print("[About] Read /proc/sys/kernel/hostname")
 		hostname = open('/proc/sys/kernel/hostname').read()
-		self.AboutText += "\n" + _("Hostname:") + "\t" + "\t" + hostname + "\n"
+		self.AboutText += "\n"
+		self.AboutText += _("Hostname:") + "\t" + hostname + "\n"
 		self["AboutScrollLabel"].setText(self.AboutText)
 
 	def cleanup(self):
@@ -552,14 +568,14 @@ class SystemNetworkInfo(Screen):
 		self.LinkState = None
 		if data != None and data:
 			if status != None:
-# getDataForInterface()->iwconfigFinished() in
-# Plugins/SystemPlugins/WirelessLan/Wlan.py sets fields to boolean False
-# if there is no info for them, so we need to check that possibility
-# for each status[self.iface] field...
-#
+				# getDataForInterface()->iwconfigFinished() in
+				# Plugins/SystemPlugins/WirelessLan/Wlan.py sets fields to boolean False
+				# if there is no info for them, so we need to check that possibility
+				# for each status[self.iface] field...
+
 				if self.iface == 'wlan0' or self.iface == 'wlan3' or self.iface == 'ra0':
-# accesspoint is used in the "enc" code too, so we get it regardless
-#
+					# accesspoint is used in the "enc" code too, so we get it regardless
+
 					if not status[self.iface]["accesspoint"]:
 						accesspoint = _("Unknown")
 					else:
@@ -579,7 +595,7 @@ class SystemNetworkInfo(Screen):
 								essid = _("No connection")
 							else:
 								essid = status[self.iface]["essid"]
-						self.AboutText += _('SSID:') + '\t' + '\t' + essid + '\n'
+						self.AboutText += _('SSID:') + '\t' + essid + '\n'
 
 					if 'quality' in self:
 						if not status[self.iface]["quality"]:
@@ -596,7 +612,7 @@ class SystemNetworkInfo(Screen):
 								bitrate = _("Unsupported")
 							else:
 								bitrate = str(status[self.iface]["bitrate"]) + " Mb/s"
-						self.AboutText += _('Bitrate:') + '\t' + '\t' + bitrate + '\n'
+						self.AboutText += _('Bitrate:') + '\t' + bitrate + '\n'
 
 					if 'signal' in self:
 						if not status[self.iface]["signal"]:
@@ -616,11 +632,9 @@ class SystemNetworkInfo(Screen):
 									encryption = _("Unsupported")
 							else:
 								encryption = _("Enabled")
-						self.AboutText += _('Encryption:') + '\t' + '\t' + encryption + '\n'
+						self.AboutText += _('Encryption:') + '\t' + encryption + '\n'
 
-					if ((status[self.iface]["essid"] and status[self.iface]["essid"] == "off") or
-						not status[self.iface]["accesspoint"] or
-						status[self.iface]["accesspoint"] == "Not-Associated"):
+					if ((status[self.iface]["essid"] and status[self.iface]["essid"] == "off") or not status[self.iface]["accesspoint"] or status[self.iface]["accesspoint"] == "Not-Associated"):
 						self.LinkState = False
 						self["statuspic"].setPixmapNum(1)
 						self["statuspic"].show()
@@ -640,7 +654,7 @@ class SystemNetworkInfo(Screen):
 			self["devicepic"].setPixmapNum(1)
 			try:
 				self.iStatus.getDataForInterface(self.iface, self.getInfoCB)
-			except:
+			except Exception as err:
 				self["statuspic"].setPixmapNum(1)
 				self["statuspic"].show()
 		else:
@@ -676,23 +690,22 @@ class SystemNetworkInfo(Screen):
 			else:
 				self["statuspic"].setPixmapNum(1)
 			self["statuspic"].show()
-		except:
+		except Exception as err:
 			pass
 
 
 class SystemMemoryInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		screentitle = _("Memory")
-		title = screentitle
-		Screen.setTitle(self, title)
+		self.setTitle(_("Memory Information"))
 		self.skinName = ["SystemMemoryInfo", "About"]
 		self["AboutScrollLabel"] = ScrollLabel()
+
 		self["key_red"] = Button(_("Close"))
-		self["actions"] = ActionMap(["SetupActions", "ColorActionsAbout"], {
+		self["actions"] = ActionMap(["SetupActions", "ColorActions"], {
 			"cancel": self.close,
 			"ok": self.close,
-			"red": self.close,
+			"red": self.close
 		})
 
 		out_lines = open("/proc/meminfo").readlines()
@@ -703,22 +716,22 @@ class SystemMemoryInfo(Screen):
 			tstLine = out_lines[lidx].split()
 			if "MemTotal:" in tstLine:
 				MemTotal = out_lines[lidx].split()
-				self.AboutText += _("Total memory:") + "\t" + "\t" + MemTotal[1] + "\n"
+				self.AboutText += _("Total memory:") + "\t" + MemTotal[1] + "\n"
 			if "MemFree:" in tstLine:
 				MemFree = out_lines[lidx].split()
-				self.AboutText += _("Free memory:") + "\t" + "\t" + MemFree[1] + "\n"
+				self.AboutText += _("Free memory:") + "\t" + MemFree[1] + "\n"
 			if "Buffers:" in tstLine:
 				Buffers = out_lines[lidx].split()
-				self.AboutText += _("Buffers:") + "\t" + "\t" + Buffers[1] + "\n"
+				self.AboutText += _("Buffers:") + "\t" + Buffers[1] + "\n"
 			if "Cached:" in tstLine:
 				Cached = out_lines[lidx].split()
-				self.AboutText += _("Cached:") + "\t" + "\t" + Cached[1] + "\n"
+				self.AboutText += _("Cached:") + "\t" + Cached[1] + "\n"
 			if "SwapTotal:" in tstLine:
 				SwapTotal = out_lines[lidx].split()
-				self.AboutText += _("Total swap:") + "\t" + "\t" + SwapTotal[1] + "\n"
+				self.AboutText += _("Total swap:") + "\t" + SwapTotal[1] + "\n"
 			if "SwapFree:" in tstLine:
 				SwapFree = out_lines[lidx].split()
-				self.AboutText += _("Free swap:") + "\t" + "\t" + SwapFree[1] + "\n\n"
+				self.AboutText += _("Free swap:") + "\t" + SwapFree[1] + "\n\n"
 
 		self["actions"].setEnabled(False)
 		self.Console = Console()
@@ -730,8 +743,8 @@ class SystemMemoryInfo(Screen):
 		RamTotal = flash[1]
 		RamFree = flash[3]
 
-		self.AboutText += _("Total:") + "\t" + "\t" + RamTotal + "\n"
-		self.AboutText += _("Free:") + "\t" + "\t" + RamFree + "\n\n"
+		self.AboutText += _("Total:") + "\t" + RamTotal + "\n"
+		self.AboutText += _("Free:") + "\t" + RamFree + "\n\n"
 
 		self["AboutScrollLabel"].setText(self.AboutText)
 		self["actions"].setEnabled(True)
@@ -752,12 +765,13 @@ class TranslationInfo(Screen):
 		infolines = _("").split("\n")
 		infomap = {}
 		for x in infolines:
-			l = x.split(': ')
-			if len(l) != 2:
+			data = x.split(': ')
+			if len(data) != 2:
 				continue
-			(type, value) = l
+			(type, value) = data
 			infomap[type] = value
-		print(infomap)
+		print("[About] DEBUG: infomap=%s" % str(infomap))
+
 		self["key_red"] = Button(_("Cancel"))
 		self["TranslationInfo"] = StaticText(info)
 
@@ -769,7 +783,7 @@ class TranslationInfo(Screen):
 
 		self["actions"] = ActionMap(["SetupActions"], {
 			"cancel": self.close,
-			"ok": self.close,
+			"ok": self.close
 		})
 
 
@@ -794,7 +808,7 @@ class CommitInfo(Screen):
 		# get the branch to display from the Enigma version
 		try:
 			branch = "?sha=" + "-".join(about.getEnigmaVersionString().split("-")[3:])
-		except:
+		except Exception as err:
 			branch = ""
 		branch_e2plugins = "?sha=python3"
 
@@ -845,7 +859,7 @@ class CommitInfo(Screen):
 					commitlog += date + ' ' + creator + '\n' + title + 2 * '\n'
 
 			self.cachedProjects[self.projects[self.project][1]] = commitlog
-		except Exception as e:
+		except Exception as err:
 			commitlog += _("Currently the commit log cannot be retrieved - please try later again.")
 		self["AboutScrollLabel"].setText(commitlog)
 
@@ -879,10 +893,12 @@ class MemoryInfo(Screen):
 		self["key_red"] = Label(_("Cancel"))
 		self["key_green"] = Label(_("Refresh"))
 		self["key_blue"] = Label(_("Clear"))
+
 		self['lmemtext'] = Label()
 		self['lmemvalue'] = Label()
 		self['rmemtext'] = Label()
 		self['rmemvalue'] = Label()
+
 		self['pfree'] = Label()
 		self['pused'] = Label()
 		self["slide"] = ProgressBar()
@@ -926,13 +942,14 @@ class MemoryInfo(Screen):
 			self['rmemtext'].setText(rtext)
 			self['rmemvalue'].setText(rvalue)
 			self["slide"].setValue(int(100.0 * (mem - free) / mem + 0.25))
-			self['pfree'].setText("%.1f %s" % (100. * free / mem, '%'))
-			self['pused'].setText("%.1f %s" % (100. * (mem - free) / mem, '%'))
-		except Exception as e:
-			print("[About] getMemoryInfo FAIL:", e)
+			self['pfree'].setText("%.1f %s" % (100.0 * free / mem, '%'))
+			self['pused'].setText("%.1f %s" % (100.0 * (mem - free) / mem, '%'))
+		except Exception as err:
+			print("[About] getMemoryInfo FAIL: '%s'." % str(err))
 
 	def clearMemory(self):
 		eConsoleAppContainer().execute("sync")
+		print("[About] Write to /proc/sys/vm/drop_caches")
 		open("/proc/sys/vm/drop_caches", "w").write("3")
 		self.getMemoryInfo()
 
@@ -959,10 +976,10 @@ class Troubleshoot(Screen):
 		Screen.__init__(self, session)
 		self.setTitle(_("Troubleshoot"))
 		self["AboutScrollLabel"] = ScrollLabel(_("Please wait"))
-		self["key_red"] = StaticText(_("Close"))
+		self["key_red"] = Button()
 		self["key_green"] = Button()
 
-		self["actions"] = ActionMap(["OkCancelActions", "DirectionActions", "ColorActionsAbout"], {
+		self["actions"] = ActionMap(["OkCancelActions", "DirectionActions", "ColorActions"], {
 			"cancel": self.close,
 			"up": self["AboutScrollLabel"].pageUp,
 			"down": self["AboutScrollLabel"].pageDown,
@@ -971,7 +988,7 @@ class Troubleshoot(Screen):
 			"left": self.left,
 			"right": self.right,
 			"red": self.red,
-			"green": self.green,
+			"green": self.green
 		})
 
 		self.container = eConsoleAppContainer()
@@ -1000,8 +1017,8 @@ class Troubleshoot(Screen):
 	def green(self):
 		if self.commandIndex >= self.numberOfCommands:
 			try:
-				os.remove(self.commands[self.commandIndex][4:])
-			except:
+				remove(self.commands[self.commandIndex][4:])
+			except (IOError, OSError) as err:
 				pass
 			self.updateOptions()
 		self.run_console()
@@ -1010,8 +1027,8 @@ class Troubleshoot(Screen):
 		if answer:
 			for fileName in self.getLogFilesList():
 				try:
-					os.remove(fileName)
-				except:
+					remove(fileName)
+				except (IOError, OSError) as err:
 					pass
 			self.updateOptions()
 			self.run_console()
@@ -1030,14 +1047,14 @@ class Troubleshoot(Screen):
 		if command.startswith("cat "):
 			try:
 				self["AboutScrollLabel"].setText(open(command[4:], "r").read())
-			except:
+			except (IOError, OSError) as err:
 				self["AboutScrollLabel"].setText(_("Logfile does not exist anymore"))
 		else:
 			try:
 				if self.container.execute(command):
-					raise Exception("failed to execute: " + command)
-			except Exception as e:
-				self["AboutScrollLabel"].setText("%s\n%s" % (_("An error occurred - Please try again later"), e))
+					raise Exception("failed to execute: ", command)
+			except Exception as err:
+				self["AboutScrollLabel"].setText("%s\n%s" % (_("An error occurred - Please try again later"), err))
 
 	def cancel(self):
 		self.container.appClosed.remove(self.appClosed)
@@ -1047,21 +1064,21 @@ class Troubleshoot(Screen):
 
 	def getDebugFilesList(self):
 		import glob
-		return [x for x in sorted(glob.glob("/home/root/enigma.*.debuglog"), key=lambda x: os.path.isfile(x) and os.path.getmtime(x))]
+		return [x for x in sorted(glob.glob("/home/root/logs/enigma2_debug_*.log"), key=lambda x: isfile(x) and getmtime(x))]
 
 	def getLogFilesList(self):
 		import glob
-		home_root = "/home/root/enigma2_crash.log"
+		home_root = "/home/root/logs/enigma2_crash.log"
 		tmp = "/tmp/enigma2_crash.log"
-		return [x for x in sorted(glob.glob("/mnt/hdd/*.log"), key=lambda x: os.path.isfile(x) and os.path.getmtime(x))] + (os.path.isfile(home_root) and [home_root] or []) + (os.path.isfile(tmp) and [tmp] or [])
+		return [x for x in sorted(glob.glob("/mnt/hdd/*.log"), key=lambda x: isfile(x) and getmtime(x))] + (isfile(home_root) and [home_root] or []) + (isfile(tmp) and [tmp] or [])
 
 	def updateOptions(self):
 		self.titles = ["dmesg", "ifconfig", "df", "top", "ps", "messages"]
 		self.commands = ["dmesg", "ifconfig", "df -h", "top -n 1", "ps -l", "cat /var/volatile/log/messages"]
 		install_log = "/home/root/autoinstall.log"
-		if os.path.isfile(install_log):
-				self.titles.append("%s" % install_log)
-				self.commands.append("cat %s" % install_log)
+		if isfile(install_log):
+			self.titles.append("%s" % install_log)
+			self.commands.append("cat %s" % install_log)
 		self.numberOfCommands = len(self.commands)
 		fileNames = self.getLogFilesList()
 		if fileNames:
@@ -1083,5 +1100,5 @@ class Troubleshoot(Screen):
 		self.updateKeys()
 
 	def updateKeys(self):
-		self["key_red"].setText(_("Close") if self.commandIndex < self.numberOfCommands else _("Remove all logfiles"))
+		self["key_red"].setText(_("Cancel") if self.commandIndex < self.numberOfCommands else _("Remove all logfiles"))
 		self["key_green"].setText(_("Refresh") if self.commandIndex < self.numberOfCommands else _("Remove this logfile"))
