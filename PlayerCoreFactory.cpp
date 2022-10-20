@@ -14,6 +14,7 @@
 #include "URL.h"
 #include "cores/IPlayerCallback.h"
 #include "cores/VideoPlayer/Interface/InputStreamConstants.h"
+#include "cores/Enigma2Player/Enigma2Player.h"
 #include "dialogs/GUIDialogContextMenu.h"
 #include "guilib/LocalizeStrings.h"
 #include "profiles/ProfileManager.h"
