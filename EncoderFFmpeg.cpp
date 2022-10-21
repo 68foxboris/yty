@@ -11,6 +11,7 @@
 #include "ServiceBroker.h"
 #include "addons/Addon.h"
 #include "addons/AddonManager.h"
+#include "cores/FFmpeg.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/StringUtils.h"
@@ -19,23 +20,8 @@
 #include "utils/log.h"
 
 using namespace KODI::CDRIP;
-
-namespace
-{
-
-struct EncoderException : public std::exception
-{
-  std::string s;
-  template<typename... Args>
-  EncoderException(const std::string& fmt, Args&&... args)
-    : s(StringUtils::Format(fmt, std::forward<Args>(args)...))
-  {
-  }
-  ~EncoderException() throw() {} // Updated
-  const char* what() const throw() { return s.c_str(); }
-};
-
-} /* namespace */
+using FFMPEG_HELP_TOOLS::FFMpegErrorToString;
+using FFMPEG_HELP_TOOLS::FFMpegException;
 
 bool CEncoderFFmpeg::Init()
 {
