@@ -10,7 +10,7 @@ from Tools.HardwareInfo import HardwareInfo
 
 def _ifinfo(sock, addr, ifname):
 	iface = struct.pack('256s', bytes(ifname[:15], encoding="UTF-8"))
-	info  = fcntl.ioctl(sock.fileno(), addr, iface)
+	info = fcntl.ioctl(sock.fileno(), addr, iface)
 	if addr == 0x8927:
 		return ''.join(['%02x:' % ord(chr(char)) for char in info[18:24]])[:-1].upper()
 	else:
@@ -98,12 +98,19 @@ def getEnigmaVersionString():
 
 
 def getGStreamerVersionString():
+	from glob import glob
 	try:
-		from glob import glob
+
 		gst = [x.split("Version: ") for x in open(glob("/var/lib/opkg/info/gstreamer[0-9].[0-9].control")[0], "r") if x.startswith("Version:")][0]
 		return "%s" % gst[1].split("+")[0].replace("\n", "")
 	except:
-		return _("Not Installed")
+		try:
+			from glob import glob
+			print("[About] Read /var/lib/opkg/info/gstreamer.control")
+			gst = [x.split("Version: ") for x in open(glob("/var/lib/opkg/info/gstreamer?.[0-9].control")[0], "r") if x.startswith("Version:")][0]
+			return "%s" % gst[1].split("+")[0].replace("\n", "")
+		except:
+			return _("Not installed")
 
 
 def getFFmpegVersionString():
@@ -166,13 +173,16 @@ def getCPUInfoString():
 					cpu_speed = "-"
 
 		temperature = None
-		freq = _("MHz")
 		if os.path.isfile('/proc/stb/fp/temp_sensor_avs'):
 			temperature = open("/proc/stb/fp/temp_sensor_avs").readline().replace('\n', '')
 		elif os.path.isfile('/proc/stb/power/avs'):
 			temperature = open("/proc/stb/power/avs").readline().replace('\n', '')
 		elif os.path.isfile('/proc/stb/fp/temp_sensor'):
 			temperature = open("/proc/stb/fp/temp_sensor").readline().replace('\n', '')
+		elif os.path.isfile('/proc/stb/sensors/temp0/value'):
+			temperature = open("/proc/stb/sensors/temp0/value").readline().replace('\n', '')
+		elif os.path.isfile('/proc/stb/sensors/temp/value'):
+			temperature = open("/proc/stb/sensors/temp/value").readline().replace('\n', '')
 		elif os.path.isfile("/sys/devices/virtual/thermal/thermal_zone0/temp"):
 			try:
 				temperature = int(open("/sys/devices/virtual/thermal/thermal_zone0/temp").read().strip()) / 1000
@@ -184,8 +194,11 @@ def getCPUInfoString():
 			except:
 				pass
 		if temperature:
-			return "%s %s %s (%s) %s\xb0C" % (processor, cpu_speed, freq, ngettext("%d core", "%d cores", cpu_count) % cpu_count, temperature)
-		return "%s %s %s (%s)" % (processor, cpu_speed, freq, ngettext("%d core", "%d cores", cpu_count) % cpu_count)
+			degree = u"\u00B0"
+			if not isinstance(degree, str):
+				degree = degree.encode("UTF-8", errors="ignore")
+			return "%s %s MHz (%s) %s%sC" % (processor, cpu_speed, ngettext("%d core", "%d cores", cpu_count) % cpu_count, temperature, degree)
+		return "%s %s MHz (%s)" % (processor, cpu_speed, ngettext("%d core", "%d cores", cpu_count) % cpu_count)
 	except:
 		return _("undefined")
 
@@ -238,7 +251,7 @@ def GetIPsFromNetworkInterfaces():
 	namestr = names.tobytes()
 	ifaces = []
 	for i in range(0, outbytes, struct_size):
-		iface_name = names.tobytes()[i:i + 16].decode().split('\0', 1)[0]
+		iface_name = str(namestr[i:i + 16]).split('\0', 1)[0]
 		if iface_name != 'lo':
 			iface_addr = socket.inet_ntoa(namestr[i + 20:i + 24])
 			ifaces.append((iface_name, iface_addr))
