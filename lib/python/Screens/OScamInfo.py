@@ -129,7 +129,7 @@ class OscamInfo:
 
 		if webif and port is not None:
 		# oscam/ncam reports it got webif support and webif is running (Port != 0)
-			if conf is not None and os.path.exists(conf):
+			if conf is not None and isfile(conf):
 				# If we have a config file, we need to investigate it further
 				with open(conf, 'r') as data:
 					for i in data:
@@ -181,14 +181,14 @@ class OscamInfo:
 			self.proto = "https"
 			self.port.replace("+", "")
 
-		print("[openWebIF] NAMEBIN=%s, CAM=%s" % (NAMEBIN, NAMEBIN))
+		print("[OscamInfo] NAMEBIN=%s, CAM=%s" % (NAMEBIN, NAMEBIN))
 		if part is None:
 			self.url = "%s://%s:%s/%sapi.html?part=status" % (self.proto, self.ip, self.port, NAMEBIN)
 		else:
 			self.url = "%s://%s:%s/%sapi.html?part=%s" % (self.proto, self.ip, self.port, NAMEBIN, part)
 		if part is not None and reader is not None:
 			self.url = "%s://%s:%s/%sapi.html?part=%s&label=%s" % (self.proto, self.ip, self.port, NAMEBIN, part, reader)
-		print("[openWebIF] NAMEBIN=%s, NAMEBIN=%s url=%s" % (NAMEBIN, NAMEBIN, self.url))
+		print("[OscamInfo] NAMEBIN=%s, NAMEBIN=%s url=%s" % (NAMEBIN, NAMEBIN, self.url))
 		print("[OscamInfo] self.url=%s" % self.url)
 		opener = build_opener(HTTPHandler)
 		if not self.username == "":
@@ -493,13 +493,13 @@ class OscamInfoMenu(Screen):
 	def goEntry(self, entry):
 		NAMEBIN = check_NAMEBIN()
 		if NAMEBIN:
-			print("[openWebIF] NAMEBIN=%s" % (NAMEBIN))
+			print("[OscamInfo] NAMEBIN=%s" % (NAMEBIN))
 			if entry in (1, 2, 3) and config.oscaminfo.userdatafromconf.value and self.osc.confPath()[0] is None:
 				config.oscaminfo.userdatafromconf.setValue(False)
 				config.oscaminfo.userdatafromconf.save()
 				self.session.openWithCallback(self.ErrMsgCallback, MessageBox, _("File %s.conf not found.\nPlease enter username/password manually." % NAMEBIN), MessageBox.TYPE_ERROR)
 			elif entry == 0:
-				if exists("/tmp/ecm.info"):
+				if isfile("/tmp/ecm.info"):
 					self.session.open(oscECMInfo)
 				else:
 					self.session.open(MessageBox, _("No ECM info is currently available. This is only available while decrypting."), MessageBox.TYPE_INFO)
