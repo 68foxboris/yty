@@ -88,10 +88,19 @@ class ParentalControl:
 			if [x for x in path[1:].split("/") if x.startswith(".") and not x == ".Trash"]:
 				age = 18
 		elif int(config.ParentalControl.age.value):
-			event = info and info.getEvent(ref)
-			rating = event and event.getParentalData()
-			age = rating and rating.getRating()
-			age = age and age <= 15 and age + 3 or 0
+			try: # Age control based on getExtendedDescription also valid for EIT.
+				event = info and info.getEvent(ref)
+				rating = event.getExtendedDescription().strip()
+				agecontrol = "%s" % int(config.ParentalControl.age.value)
+				if agecontrol in str(rating):
+					age = agecontrol
+					if age:
+						return age or service and service in self.blacklist
+			except Exception:
+				event = info and info.getEvent(ref)
+				rating = event and event.getParentalData()
+				age = rating and rating.getRating()
+				age = age and age <= 15 and age + 3 or 0
 		return (age and age >= int(config.ParentalControl.age.value)) or service and service in self.blacklist
 
 	def isServicePlayable(self, ref, callback, session=None):
