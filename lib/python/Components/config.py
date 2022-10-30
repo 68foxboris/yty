@@ -7,6 +7,75 @@ import copy
 import os
 from time import localtime, strftime
 
+
+ACTIONKEY_LEFT = 0
+ACTIONKEY_RIGHT = 1
+ACTIONKEY_SELECT = 2
+ACTIONKEY_DELETE = 3
+ACTIONKEY_BACKSPACE = 4
+ACTIONKEY_FIRST = 5
+ACTIONKEY_LAST = 6
+ACTIONKEY_TOGGLE = 7
+ACTIONKEY_ASCII = 8
+ACTIONKEY_TIMEOUT = 9
+ACTIONKEY_NUMBERS = list(range(12, 12 + 10))
+ACTIONKEY_0 = 12
+ACTIONKEY_1 = 13
+ACTIONKEY_2 = 14
+ACTIONKEY_3 = 15
+ACTIONKEY_4 = 16
+ACTIONKEY_5 = 17
+ACTIONKEY_6 = 18
+ACTIONKEY_7 = 19
+ACTIONKEY_8 = 20
+ACTIONKEY_9 = 21
+ACTIONKEY_PAGEUP = 22
+ACTIONKEY_PAGEDOWN = 23
+ACTIONKEY_PREV = 24
+ACTIONKEY_NEXT = 25
+ACTIONKEY_ERASE = 26
+
+# Deprecated / Legacy action key names...
+#
+# (These should be removed when all Enigma2 uses the new and less confusing names.)
+#
+KEY_LEFT = ACTIONKEY_LEFT
+KEY_RIGHT = ACTIONKEY_RIGHT
+KEY_OK = ACTIONKEY_SELECT
+KEY_DELETE = ACTIONKEY_DELETE
+KEY_BACKSPACE = ACTIONKEY_BACKSPACE
+KEY_HOME = ACTIONKEY_FIRST
+KEY_END = ACTIONKEY_LAST
+KEY_TOGGLEOW = ACTIONKEY_TOGGLE
+KEY_ASCII = ACTIONKEY_ASCII
+KEY_TIMEOUT = ACTIONKEY_TIMEOUT
+KEY_NUMBERS = ACTIONKEY_NUMBERS
+KEY_0 = ACTIONKEY_0
+KEY_9 = ACTIONKEY_9
+
+
+def getKeyNumber(key):
+	if key not in ACTIONKEY_NUMBERS:
+		raise ValueError("[Config] Error: The key '%s' is not a numeric digit!" % key)
+	return key - ACTIONKEY_0
+
+
+def getConfigListEntry(*args):
+	if len(args) < 1:  # A single argument creates a comment line in the ConfigList.  This item can't be selected!
+		print("[Config] Error: 'getConfigListEntry' needs at least one argument (description)!")
+	return args
+
+
+def updateConfigElement(element, newelement):
+	newelement.value = element.value
+	return newelement
+
+
+def NoSave(element):
+	element.disableSave()
+	return element
+
+
 # ConfigElement, the base class of all ConfigElements.
 
 # it stores:
@@ -157,27 +226,7 @@ class ConfigElement:
 		pass
 
 
-KEY_LEFT = 0
-KEY_RIGHT = 1
-KEY_OK = 2
-KEY_DELETE = 3
-KEY_BACKSPACE = 4
-KEY_HOME = 5
-KEY_END = 6
-KEY_TOGGLEOW = 7
-KEY_ASCII = 8
-KEY_TIMEOUT = 9
-KEY_NUMBERS = list(range(12, 12 + 10))
-KEY_0 = 12
-KEY_9 = 12 + 9
-
-
-def getKeyNumber(key):
-	assert key in KEY_NUMBERS
-	return key - KEY_0
-
-
-class choicesList:  # XXX: we might want a better name for this
+class choicesList():  # XXX: we might want a better name for this
 	LIST_TYPE_LIST = 1
 	LIST_TYPE_DICT = 2
 
@@ -341,6 +390,8 @@ class ConfigSelection(ConfigElement):
 
 		if self.value not in self.choices:
 			self.value = default
+	def getChoices(self):
+		return self.choices.choices
 
 	def setValue(self, value):
 		if str(value) in map(str, self.choices):
@@ -378,17 +429,20 @@ class ConfigSelection(ConfigElement):
 
 	# GUI
 	def handleKey(self, key):
-		nchoices = len(self.choices)
-		if nchoices > 1:
-			i = self.choices.index(self.value)
-			if key == KEY_LEFT:
-				self.value = self.choices[(i + nchoices - 1) % nchoices]
-			elif key == KEY_RIGHT:
-				self.value = self.choices[(i + 1) % nchoices]
-			elif key == KEY_HOME:
+		count = len(self.choices)
+		if count > 1:
+			prev = str(self.value)
+			index = self.choices.index(str(self.value))  # Temporary hack until keys don't have to be strings.
+			if key == ACTIONKEY_LEFT:
+				self.value = self.choices[(index + count - 1) % count]
+			elif key == ACTIONKEY_RIGHT:
+				self.value = self.choices[(index + 1) % count]
+			elif key == ACTIONKEY_FIRST:
 				self.value = self.choices[0]
-			elif key == KEY_END:
-				self.value = self.choices[nchoices - 1]
+			elif key == ACTIONKEY_LAST:
+				self.value = self.choices[count - 1]
+			if str(self.value) != prev:
+				self.changed()
 
 	def selectNext(self):
 		nchoices = len(self.choices)
@@ -444,11 +498,11 @@ class ConfigBoolean(ConfigElement):
 		self.graphic = graphic
 
 	def handleKey(self, key):
-		if key in (KEY_LEFT, KEY_RIGHT):
+		if key in (ACTIONKEY_TOGGLE, ACTIONKEY_SELECT, ACTIONKEY_LEFT, ACTIONKEY_RIGHT):
 			self.value = not self.value
-		elif key == KEY_HOME:
+		elif key == ACTIONKEY_FIRST:
 			self.value = False
-		elif key == KEY_END:
+		elif key == ACTIONKEY_LAST:
 			self.value = True
 
 	def getText(self):
@@ -516,11 +570,11 @@ class ConfigDateTime(ConfigElement):
 		self.value = self.last_value = self.default = int(default)
 
 	def handleKey(self, key):
-		if key == KEY_LEFT:
+		if key == ACTIONKEY_LEFT:
 			self.value -= self.increment
-		elif key == KEY_RIGHT:
+		elif key == ACTIONKEY_RIGHT:
 			self.value += self.increment
-		elif key == KEY_HOME or key == KEY_END:
+		elif key == ACTIONKEY_FIRST or key == ACTIONKEY_LAST:
 			self.value = self.default
 
 	def getText(self):
@@ -553,6 +607,9 @@ class ConfigSequence(ConfigElement):
 		self.seperator = seperator
 		self.limits = limits
 		self.censor_char = censor_char
+
+		self.block_len = [len(str(x[1])) for x in limits]
+		self.total_len = sum(self.block_len) - 1
 
 		self.last_value = self.default = default
 		self.value = copy.copy(default)
@@ -596,66 +653,48 @@ class ConfigSequence(ConfigElement):
 			self.endNotifier = []
 		self.endNotifier.append(notifier)
 
-	def handleKey(self, key):
-		if key == KEY_LEFT:
-			self.marked_pos -= 1
-			self.validatePos()
-
-		elif key == KEY_RIGHT:
-			self.marked_pos += 1
-			self.validatePos()
-
-		elif key == KEY_HOME:
+	def handleKey(self, key, callback=None):
+		if key == ACTIONKEY_FIRST:
 			self.marked_pos = 0
-			self.validatePos()
-
-		elif key == KEY_END:
-			max_pos = 0
-			num = 0
-			for i in self._value:
-				max_pos += len(str(self.limits[num][1]))
-				num += 1
-			self.marked_pos = max_pos - 1
-			self.validatePos()
-
-		elif key in KEY_NUMBERS or key == KEY_ASCII:
-			if key == KEY_ASCII:
+		elif key == ACTIONKEY_LEFT:
+			if self.marked_pos > 0:
+				self.marked_pos -= 1
+		elif key == ACTIONKEY_RIGHT:
+			if self.marked_pos < self.total_len:
+				self.marked_pos += 1
+		elif key == ACTIONKEY_LAST:
+			self.marked_pos = self.total_len
+		elif key in ACTIONKEY_NUMBERS or key == ACTIONKEY_ASCII:
+			# prev = self._value
+			if key == ACTIONKEY_ASCII:
 				code = getPrevAsciiCode()
 				if code < 48 or code > 57:
 					return
 				number = code - 48
 			else:
 				number = getKeyNumber(key)
-
-			block_len = [len(str(x[1])) for x in self.limits]
-			total_len = sum(block_len)
-
 			pos = 0
-			blocknumber = 0
-			block_len_total = [0, ]
-			for x in block_len:
-				pos += block_len[blocknumber]
+			blockNumber = 0
+			block_len_total = [0]
+			for x in self.block_len:
+				pos += self.block_len[blockNumber]
 				block_len_total.append(pos)
 				if pos - 1 >= self.marked_pos:
 					pass
 				else:
-					blocknumber += 1
-
-			# length of numberblock
-			number_len = len(str(self.limits[blocknumber][1]))
-
-			# position in the block
-			posinblock = self.marked_pos - block_len_total[blocknumber]
-
-			oldvalue = abs(self._value[blocknumber]) # we are using abs in order to allow change negative values like default -1 on mis
+					blockNumber += 1
+			number_len = len(str(self.limits[blockNumber][1]))  # Length of number block.
+			posinblock = self.marked_pos - block_len_total[blockNumber]  # Position in the block.
+			oldvalue = abs(self._value[blockNumber])  # We are using abs() in order to allow change negative values like default -1.
 			olddec = oldvalue % 10 ** (number_len - posinblock) - (oldvalue % 10 ** (number_len - posinblock - 1))
 			newvalue = oldvalue - olddec + (10 ** (number_len - posinblock - 1) * number)
-
-			self._value[blocknumber] = newvalue
+			self._value[blockNumber] = newvalue
 			self.marked_pos += 1
-
 			self.validate()
+			# if self._value != prev:
 			self.changed()
+			if callable(callback):
+				callback()
 
 	def genText(self):
 		value = ""
@@ -709,77 +748,69 @@ class ConfigIP(ConfigSequence):
 	def __init__(self, default, auto_jump=False):
 		ConfigSequence.__init__(self, seperator=".", limits=ip_limits, default=default)
 		self.block_len = [len(str(x[1])) for x in self.limits]
-		self.marked_block = 0
+		self.marked_pos = 0
 		self.overwrite = True
 		self.auto_jump = auto_jump
 
 	def handleKey(self, key):
-		if key == KEY_LEFT:
-			if self.marked_block > 0:
-				self.marked_block -= 1
+		if key == ACTIONKEY_FIRST:
+			self.marked_pos = 0
 			self.overwrite = True
-
-		elif key == KEY_RIGHT:
-			if self.marked_block < len(self.limits) - 1:
-				self.marked_block += 1
+		elif key == ACTIONKEY_LEFT:
+			if self.marked_pos > 0:
+				self.marked_pos -= 1
 			self.overwrite = True
-
-		elif key == KEY_HOME:
-			self.marked_block = 0
+		elif key == ACTIONKEY_RIGHT:
+			if self.marked_pos < len(self.limits) - 1:
+				self.marked_pos += 1
 			self.overwrite = True
-
-		elif key == KEY_END:
-			self.marked_block = len(self.limits) - 1
+		elif key == ACTIONKEY_LAST:
+			self.marked_pos = len(self.limits) - 1
 			self.overwrite = True
-
-		elif key in KEY_NUMBERS or key == KEY_ASCII:
-			if key == KEY_ASCII:
+		elif key in (ACTIONKEY_DELETE, ACTIONKEY_BACKSPACE):
+			self._value[self.marked_pos] = 0
+			self.overwrite = True
+		elif key == ACTIONKEY_ERASE:
+			self.marked_pos = 0
+			self._value = [0, 0, 0, 0]
+			self.overwrite = True
+		elif key in ACTIONKEY_NUMBERS or key == ACTIONKEY_ASCII:
+			if key == ACTIONKEY_ASCII:
 				code = getPrevAsciiCode()
 				if code < 48 or code > 57:
 					return
 				number = code - 48
 			else:
 				number = getKeyNumber(key)
-			oldvalue = self._value[self.marked_block]
-
+			prev = self._value[:]
 			if self.overwrite:
-				self._value[self.marked_block] = number
+				self._value[self.marked_pos] = number
 				self.overwrite = False
 			else:
-				oldvalue *= 10
-				newvalue = oldvalue + number
-				if self.auto_jump and newvalue > self.limits[self.marked_block][1] and self.marked_block < len(self.limits) - 1:
-					self.handleKey(KEY_RIGHT)
+				newValue = (self._value[self.marked_pos] * 10) + number
+				if self.auto_jump and newValue > self.limits[self.marked_pos][1] and self.marked_pos < len(self.limits) - 1:
+					self.handleKey(ACTIONKEY_RIGHT)
 					self.handleKey(key)
 					return
 				else:
-					self._value[self.marked_block] = newvalue
-
-			if len(str(self._value[self.marked_block])) >= self.block_len[self.marked_block]:
-				self.handleKey(KEY_RIGHT)
-
+					self._value[self.marked_pos] = newValue
+			if len(str(self._value[self.marked_pos])) >= self.block_len[self.marked_pos]:
+				self.handleKey(ACTIONKEY_RIGHT)
 			self.validate()
-			self.changed()
+			if self._value != prev:
+				self.changed()
 
 	def genText(self):
-		value = ""
-		block_strlen = []
-		for i in self._value:
-			block_strlen.append(len(str(i)))
-			if value:
-				value += self.seperator
-			value += str(i)
-		leftPos = sum(block_strlen[:(self.marked_block)]) + self.marked_block
-		rightPos = sum(block_strlen[:(self.marked_block + 1)]) + self.marked_block
+		value = self.seperator.join([str(x) for x in self._value])
+		block_len = [len(str(x)) for x in self._value]
+		leftPos = sum(block_len[:self.marked_pos]) + self.marked_pos
+		rightPos = sum(block_len[:self.marked_pos + 1]) + self.marked_pos
 		mBlock = list(range(leftPos, rightPos))
 		return (value, mBlock)
 
 	def getMulti(self, selected):
 		(value, mBlock) = self.genText()
-		if self.enabled:
-			return ("mtext"[1 - selected:], value, mBlock)
-		else:
-			return ("text", value)
+		return ("mtext"[1 - selected:], value, mBlock) if self.enabled else ("text", value)
 
 	def getHTML(self, id):
 		# we definitely don't want leading zeros
@@ -804,8 +835,8 @@ clock_limits = [(0, 23), (0, 59)]
 
 class ConfigClock(ConfigSequence):
 	def __init__(self, default):
-		t = localtime(default)
-		ConfigSequence.__init__(self, seperator=":", limits=clock_limits, default=[t.tm_hour, t.tm_min])
+		self.t = localtime(default)
+		ConfigSequence.__init__(self, seperator=":", limits=clock_limits, default=[self.t.tm_hour, self.t.tm_min])
 
 	def increment(self):
 		# Check if Minutes maxed out
@@ -837,6 +868,76 @@ class ConfigClock(ConfigSequence):
 		# Trigger change
 		self.changed()
 
+	def handleKey(self, key):
+		if key == ACTIONKEY_DELETE and config.usage.time.wide.value:
+			if self._value[0] < 12:
+				self._value[0] += 12
+				self.validate()
+				self.changed()
+		elif key == ACTIONKEY_BACKSPACE and config.usage.time.wide.value:
+			if self._value[0] >= 12:
+				self._value[0] -= 12
+				self.validate()
+				self.changed()
+		elif key in ACTIONKEY_NUMBERS or key == ACTIONKEY_ASCII:
+			if key == ACTIONKEY_ASCII:
+				code = getPrevAsciiCode()
+				if code < 48 or code > 57:
+					return
+				digit = code - 48
+			else:
+				digit = getKeyNumber(key)
+			hour = self._value[0]
+			pmadjust = 0
+			if config.usage.time.wide.value:
+				if hour > 11:  # All the PM times.
+					hour -= 12
+					pmadjust = 12
+				if hour == 0:  # 12AM & 12PM map to 12.
+					hour = 12
+				if self.marked_pos == 0 and digit >= 2:  # Only 0, 1 allowed (12 hour clock).
+					return
+				if self.marked_pos == 1 and hour > 9 and digit >= 3:  # Only 10, 11, 12 allowed.
+					return
+				if self.marked_pos == 1 and hour < 10 and digit == 0:  # Only 01, 02, ..., 09 allowed.
+					return
+			else:
+				if self.marked_pos == 0 and digit >= 3:  # Only 0, 1, 2 allowed (24 hour clock).
+					return
+				if self.marked_pos == 1 and hour > 19 and digit >= 4:  # Only 20, 21, 22, 23 allowed.
+					return
+			if self.marked_pos == 2 and digit >= 6:  # Only 0, 1, ..., 5 allowed (tens digit of minutes).
+				return
+			value = bytearray(b"%02d%02d" % (hour, self._value[1]))  # Must be ASCII!
+			value[self.marked_pos] = digit + ord(b"0")
+			hour = int(value[:2])
+			minute = int(value[2:])
+			if config.usage.time.wide.value:
+				if hour == 12:  # 12AM & 12PM map to back to 00.
+					hour = 0
+				elif hour > 12:
+					hour = 10
+				hour += pmadjust
+			elif hour > 23:
+				hour = 20
+			self._value[0] = hour
+			self._value[1] = minute
+			self.marked_pos += 1
+			self.validate()
+			self.changed()
+		else:
+			ConfigSequence.handleKey(self, key)
+
+	def genText(self):
+		mPos = self.marked_pos
+		if mPos >= 2:
+			mPos += 1  # Skip over the separator
+		newtime = list(self.t)
+		newtime[3] = self._value[0]
+		newtime[4] = self._value[1]
+		newtime = struct_time(newtime)
+		value = strftime(config.usage.time.short.value.replace("%-I", "%_I").replace("%-H", "%_H"), newtime)
+		return (value, mPos)
 
 date_limits = [(1, 31), (1, 12), (1970, 2050)]
 
@@ -960,19 +1061,30 @@ class ConfigText(ConfigElement, NumericalTextInput):
 			self.text = ""
 		self.marked_pos = 0
 
-	def handleKey(self, key):
-		# this will no change anything on the value itself
-		# so we can handle it here in gui element
-		if key == KEY_DELETE:
+	def handleKey(self, key):  # This will not change anything on the value itself so we can handle it here in GUI element.
+		if key == ACTIONKEY_FIRST:
+			self.timeout()
+			self.allmarked = False
+			self.marked_pos = 0
+		elif key == ACTIONKEY_LEFT:
 			self.timeout()
 			if self.allmarked:
-				self.deleteAllChars()
+				self.marked_pos = len(self.text)
 				self.allmarked = False
 			else:
-				self.deleteChar(self.marked_pos)
-				if self.fixed_size and self.overwrite:
-					self.marked_pos += 1
-		elif key == KEY_BACKSPACE:
+				self.marked_pos -= 1
+		elif key == ACTIONKEY_RIGHT:
+			self.timeout()
+			if self.allmarked:
+				self.marked_pos = 0
+				self.allmarked = False
+			else:
+				self.marked_pos += 1
+		elif key == ACTIONKEY_LAST:
+			self.timeout()
+			self.allmarked = False
+			self.marked_pos = len(self.text)
+		elif key == ACTIONKEY_BACKSPACE:
 			self.timeout()
 			if self.allmarked:
 				self.deleteAllChars()
@@ -982,32 +1094,22 @@ class ConfigText(ConfigElement, NumericalTextInput):
 				if not self.fixed_size and self.offset > 0:
 					self.offset -= 1
 				self.marked_pos -= 1
-		elif key == KEY_LEFT:
+		elif key == ACTIONKEY_DELETE:
 			self.timeout()
 			if self.allmarked:
-				self.marked_pos = len(self.text)
+				self.deleteAllChars()
 				self.allmarked = False
 			else:
-				self.marked_pos -= 1
-		elif key == KEY_RIGHT:
+				self.deleteChar(self.marked_pos)
+				if self.fixed_size and self.overwrite:
+					self.marked_pos += 1
+		elif key == ACTIONKEY_ERASE:
 			self.timeout()
-			if self.allmarked:
-				self.marked_pos = 0
-				self.allmarked = False
-			else:
-				self.marked_pos += 1
-		elif key == KEY_HOME:
-			self.timeout()
-			self.allmarked = False
-			self.marked_pos = 0
-		elif key == KEY_END:
-			self.timeout()
-			self.allmarked = False
-			self.marked_pos = len(self.text)
-		elif key == KEY_TOGGLEOW:
+			self.deleteAllChars()
+		elif key == ACTIONKEY_TOGGLE:
 			self.timeout()
 			self.overwrite = not self.overwrite
-		elif key == KEY_ASCII:
+		elif key == ACTIONKEY_ASCII:
 			self.timeout()
 			newChar = chr(getPrevAsciiCode())
 			if not self.useableChars or newChar in self.useableChars:
@@ -1016,14 +1118,17 @@ class ConfigText(ConfigElement, NumericalTextInput):
 					self.allmarked = False
 				self.insertChar(newChar, self.marked_pos, False)
 				self.marked_pos += 1
-		elif key in KEY_NUMBERS:
+		elif key in ACTIONKEY_NUMBERS:
 			owr = self.lastKey == getKeyNumber(key)
 			newChar = self.getKey(getKeyNumber(key))
 			if self.allmarked:
 				self.deleteAllChars()
 				self.allmarked = False
 			self.insertChar(newChar, self.marked_pos, owr)
-		elif key == KEY_TIMEOUT:
+			if self.help_window:
+				self.help_window.update(self)
+			return
+		elif key == ACTIONKEY_TIMEOUT:
 			self.timeout()
 			if self.help_window:
 				self.help_window.update(self)
@@ -1145,13 +1250,11 @@ class ConfigSelectionNumber(ConfigSelection):
 		ConfigSelection.setValue(self, str(val))
 
 	def handleKey(self, key):
-		if not self.wraparound:
-			if key == KEY_RIGHT:
-				if len(self.choices) == (self.choices.index(self.value) + 1):
-					return
-			if key == KEY_LEFT:
-				if self.choices.index(self.value) == 0:
-					return
+		if not self.wrapAround:
+			if key == ACTIONKEY_RIGHT and self.choices.index(self.value) == len(self.choices) - 1:
+				return
+			if key == ACTIONKEY_LEFT and self.choices.index(self.value) == 0:
+				return
 		ConfigSelection.handleKey(self, key)
 
 
@@ -1186,8 +1289,8 @@ class ConfigNumber(ConfigText):
 			self.marked_pos = len(self.text) - pos
 
 	def handleKey(self, key):
-		if key in KEY_NUMBERS or key == KEY_ASCII:
-			if key == KEY_ASCII:
+		if key in ACTIONKEY_NUMBERS or key == ACTIONKEY_ASCII:
+			if key == ACTIONKEY_ASCII:
 				ascii = getPrevAsciiCode()
 				if not (48 <= ascii <= 57):
 					return
@@ -1199,7 +1302,7 @@ class ConfigNumber(ConfigText):
 				self.allmarked = False
 			self.insertChar(newChar, self.marked_pos, False)
 			self.marked_pos += 1
-			self.changed()
+			self.validateMarker()
 		else:
 			ConfigText.handleKey(self, key)
 		self.conform()
@@ -1267,17 +1370,24 @@ class ConfigSlider(ConfigElement):
 			self.value = self.max
 
 	def handleKey(self, key):
-		if key == KEY_LEFT:
-			self.value -= self.increment
-		elif key == KEY_RIGHT:
-			self.value += self.increment
-		elif key == KEY_HOME:
-			self.value = self.min
-		elif key == KEY_END:
-			self.value = self.max
+		value = self.value
+		if key == ACTIONKEY_FIRST:
+			value = self.min
+		elif key == ACTIONKEY_LEFT:
+			value -= self.increment
+		elif key == ACTIONKEY_RIGHT:
+			value += self.increment
+		elif key == ACTIONKEY_LAST:
+			value = self.max
 		else:
 			return
-		self.checkValues()
+		if value < self.min:
+			value = self.min
+		elif value > self.max:
+			value = self.max
+		if value != self.value:
+			self.value = value
+			self.changed()
 
 	def getText(self):
 		return "%d / %d" % (self.value, self.max)
@@ -1331,21 +1441,24 @@ class ConfigSet(ConfigElement):
 		self.changed()
 
 	def handleKey(self, key):
-		if key in KEY_NUMBERS + [KEY_DELETE, KEY_BACKSPACE]:
-			if self.pos != -1:
-				self.toggleChoice(self.choices[self.pos])
-		elif key == KEY_LEFT:
-			if self.pos < 0:
-				self.pos = len(self.choices) - 1
+		if key == ACTIONKEY_FIRST:
+			self.pos = 0
+		elif key == ACTIONKEY_LEFT:
+			self.pos = self.pos - 1 if self.pos > 0 else len(self.choices) - 1
+		elif key == ACTIONKEY_RIGHT:
+			self.pos = self.pos + 1 if self.pos < len(self.choices) - 1 else 0
+		elif key == ACTIONKEY_LAST:
+			self.pos = len(self.choices) - 1
+		elif key in [ACTIONKEY_TOGGLE, ACTIONKEY_SELECT, ACTIONKEY_DELETE, ACTIONKEY_BACKSPACE] + ACTIONKEY_NUMBERS:
+			value = self.value
+			choice = self.choices[self.pos]
+			if choice in value:
+				value.remove(choice)
 			else:
-				self.pos -= 1
-		elif key == KEY_RIGHT:
-			if self.pos >= len(self.choices) - 1:
-				self.pos = -1
-			else:
-				self.pos += 1
-		elif key in (KEY_HOME, KEY_END):
-			self.pos = -1
+				value.append(choice)
+				value.sort()
+			self.value = value
+			self.changed()
 
 	def genString(self, lst):
 		res = ""
@@ -1560,16 +1673,15 @@ class ConfigLocations(ConfigElement):
 		return None
 
 	def handleKey(self, key):
-		if key == KEY_LEFT:
-			self.pos -= 1
-			if self.pos < -1:
-				self.pos = len(self.value) - 1
-		elif key == KEY_RIGHT:
-			self.pos += 1
-			if self.pos >= len(self.value):
-				self.pos = -1
-		elif key in (KEY_HOME, KEY_END):
-			self.pos = -1
+		count = len(self.value) - 1
+		if key == ACTIONKEY_FIRST:
+			self.item = 0
+		elif key == ACTIONKEY_LEFT:
+			self.item = self.item - 1 if self.item > 0 else count
+		elif key == ACTIONKEY_RIGHT:
+			self.item = self.item + 1 if self.item < count else 0
+		elif key == ACTIONKEY_LAST:
+			self.item = count
 
 	def getText(self):
 		return " ".join(self.value)
@@ -1869,10 +1981,6 @@ class Config(ConfigSubsection):
 		self.unpickle(open(filename, "r", encoding="UTF-8"), base_file)
 
 
-config = Config()
-config.misc = ConfigSubsection()
-
-
 class ConfigFile:
 	CONFIG_FILE = resolveFilename(SCOPE_CONFIG, "settings")
 
@@ -1906,24 +2014,10 @@ class ConfigFile:
 		return ""
 
 
-def NoSave(element):
-	element.disableSave()
-	return element
-
-
+config = Config()
+config.misc = ConfigSubsection()
 configfile = ConfigFile()
-
 configfile.load()
-
-
-def getConfigListEntry(*args):
-	assert len(args) > 1, "getConfigListEntry needs a minimum of two arguments (descr, configElement)"
-	return args
-
-
-def updateConfigElement(element, newelement):
-	newelement.value = element.value
-	return newelement
 
 # def _(x):
 # 	return x
@@ -1955,32 +2049,27 @@ cec_limits = [(0, 15), (0, 15), (0, 15), (0, 15)]
 class ConfigCECAddress(ConfigSequence):
 	def __init__(self, default, auto_jump=False):
 		ConfigSequence.__init__(self, seperator=".", limits=cec_limits, default=default)
-		self.block_len = [len(str(x[1])) for x in self.limits]
 		self.marked_block = 0
 		self.overwrite = True
 		self.auto_jump = auto_jump
 
 	def handleKey(self, key):
-		if key == KEY_LEFT:
+		if key == ACTIONKEY_LEFT:
 			if self.marked_block > 0:
 				self.marked_block -= 1
 			self.overwrite = True
-
-		elif key == KEY_RIGHT:
+		elif key == ACTIONKEY_RIGHT:
 			if self.marked_block < len(self.limits) - 1:
 				self.marked_block += 1
 			self.overwrite = True
-
-		elif key == KEY_HOME:
+		elif key == ACTIONKEY_FIRST:
 			self.marked_block = 0
 			self.overwrite = True
-
-		elif key == KEY_END:
+		elif key == ACTIONKEY_LAST:
 			self.marked_block = len(self.limits) - 1
 			self.overwrite = True
-
-		elif key in KEY_NUMBERS or key == KEY_ASCII:
-			if key == KEY_ASCII:
+		elif key in ACTIONKEY_NUMBERS or key == ACTIONKEY_ASCII:
+			if key == ACTIONKEY_ASCII:
 				code = getPrevAsciiCode()
 				if code < 48 or code > 57:
 					return
@@ -1988,7 +2077,6 @@ class ConfigCECAddress(ConfigSequence):
 			else:
 				number = getKeyNumber(key)
 			oldvalue = self._value[self.marked_block]
-
 			if self.overwrite:
 				self._value[self.marked_block] = number
 				self.overwrite = False
@@ -1996,15 +2084,13 @@ class ConfigCECAddress(ConfigSequence):
 				oldvalue *= 10
 				newvalue = oldvalue + number
 				if self.auto_jump and newvalue > self.limits[self.marked_block][1] and self.marked_block < len(self.limits) - 1:
-					self.handleKey(KEY_RIGHT)
+					self.handleKey(ACTIONKEY_RIGHT)
 					self.handleKey(key)
 					return
 				else:
 					self._value[self.marked_block] = newvalue
-
 			if len(str(self._value[self.marked_block])) >= self.block_len[self.marked_block]:
-				self.handleKey(KEY_RIGHT)
-
+				self.handleKey(ACTIONKEY_RIGHT)
 			self.validate()
 			self.changed()
 
@@ -2041,7 +2127,7 @@ class ConfigAction(ConfigElement):
 		self.actionargs = args
 
 	def handleKey(self, key):
-		if (key == KEY_OK):
+		if (key == ACTIONKEY_SELECT):
 			self.action(*self.actionargs)
 
 	def getMulti(self, dummy):
