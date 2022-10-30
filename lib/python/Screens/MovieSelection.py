@@ -1711,7 +1711,7 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 				if item[0].flags & eServiceReference.mustDescent: # directory
 					newfilename = pathjoin(path, newbasename)
 					print("[MovieSelection] rename dir", oldfilename, "to", newfilename)
-					os.rename(oldfilename, newfilename)
+					rename(oldfilename, newfilename)
 				else:
 					if oldfilename.endswith(self.extension):
 						oldbasename = oldfilename[:-len(self.extension)]
@@ -1900,7 +1900,7 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 						trash = Tools.Trashcan.createTrashFolder(cur_path)
 						trash = pathjoin(trash, split(cur_path)[1])
 						mkdir(trash)
-						for root, dirnames, filenames in os.walk(cur_path):
+						for root, dirnames, filenames in walk(cur_path):
 							trashroot = pathjoin(trash, root[len(cur_path) + 1:])
 							for fn in filenames:
 								print("Move %s -> %s" % (pathjoin(root, fn), pathjoin(trashroot, fn)))
@@ -1913,7 +1913,7 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 							for dn in dirnames:
 								print("rmdir", pathjoin(trashroot, dn))
 								rmdir(pathjoin(root, dn))
-						os.rmdir(cur_path)
+						rmdir(cur_path)
 						self["list"].removeService(current)
 						self.showActionFeedback(_("Deleted") + " " + name)
 						# Files were moved to .Trash, ok.
@@ -1951,7 +1951,7 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 				return
 			else:
 				try:
-					os.rmdir(cur_path)
+					rmdir(cur_path)
 				except Exception as e:
 					print("[MovieSelection] Failed delete", e)
 					self.session.open(MessageBox, _("Delete failed!") + "\n" + str(e), MessageBox.TYPE_ERROR)
