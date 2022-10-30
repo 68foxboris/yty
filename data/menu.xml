@@ -58,7 +58,7 @@
 				<menu level="0" text="GUI Settings" entryID="gui_settings">
 					<id val="gui"/>
 					<item level="0" text="Language" entryID="language_setup"><screen module="LanguageSelection"/></item>
-					<item level="0" entryID="timezone_setup"><setup id="timezone"/></item>
+					<item entryID="time_setup" level="0" text="Time" weight="50"><screen module="Time" screen="Time" /></item>
 					<item level="0" entryID="user_interface"><setup id="userinterface"/></item>
 					<item level="0" text="GUI Skin" entryID="primary_skin_selector"><screen module="SkinSelector" screen="SkinSelector"/></item>
 					<item level="0" requires="FrontpanelDisplay" text="Display Skin" entryID="display_skin_selector"><screen module="SkinSelector" screen="LcdSkinSelector"/></item>

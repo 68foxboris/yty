@@ -5,7 +5,7 @@ from Components.Harddisk import harddiskmanager
 from Tools.LoadPixmap import LoadPixmap
 import copy
 import os
-from time import localtime, strftime
+from time import localtime, strftime, struct_time
 
 
 ACTIONKEY_LEFT = 0
@@ -152,6 +152,10 @@ class ConfigElement:
 			self.value = self.fromstring(sv)
 
 	def tostring(self, value):
+		return str(value)
+
+	# You need to override this to do appropriate value conversion to a displayable string in the Setup / ConfigList UI.
+	def toDisplayString(self, value):
 		return str(value)
 
 	# you need to override this if str(self.value) doesn't work
@@ -390,6 +394,7 @@ class ConfigSelection(ConfigElement):
 
 		if self.value not in self.choices:
 			self.value = default
+
 	def getChoices(self):
 		return self.choices.choices
 
@@ -403,6 +408,9 @@ class ConfigSelection(ConfigElement):
 
 	def tostring(self, val):
 		return str(val)
+
+	def toDisplayString(self, val):
+		return self.description[val]
 
 	def getValue(self):
 		return self._value
@@ -546,6 +554,9 @@ class ConfigBoolean(ConfigElement):
 			self.changedFinal()
 			self.last_value = self.value
 
+	def toDisplayString(self, value):
+		return self.descriptions[True] if value or str(value).lower() in self.trueValues else self.descriptions[False]
+
 
 class ConfigYesNo(ConfigBoolean):
 	def __init__(self, default=False, graphic=True):
@@ -585,6 +596,9 @@ class ConfigDateTime(ConfigElement):
 
 	def fromstring(self, val):
 		return int(val)
+
+	def toDisplayString(self, value):
+		return strftime(self.formatString, localtime(value))
 
 # *THE* mighty config element class
 #
@@ -728,6 +742,9 @@ class ConfigSequence(ConfigElement):
 	def tostring(self, val):
 		return self.seperator.join([self.saveSingle(x) for x in val])
 
+	def toDisplayString(self, value):
+		return self.seperator.join(["%%0%sd" % (str(self.block_len[index]) if self.zeroPad else "") % value for index, value in enumerate(self._value)])
+
 	def saveSingle(self, v):
 		return str(v)
 
@@ -748,7 +765,7 @@ class ConfigIP(ConfigSequence):
 	def __init__(self, default, auto_jump=False):
 		ConfigSequence.__init__(self, seperator=".", limits=ip_limits, default=default)
 		self.block_len = [len(str(x[1])) for x in self.limits]
-		self.marked_pos = 0
+		self.marked_block = 0
 		self.overwrite = True
 		self.auto_jump = auto_jump
 
@@ -1497,6 +1514,9 @@ class ConfigSet(ConfigElement):
 	def tostring(self, value):
 		return str(value)
 
+	def toDisplayString(self, value):
+		return ", ".join([self.description[x] for x in value])
+
 	def fromstring(self, val):
 		return eval(val)
 
@@ -2048,7 +2068,7 @@ cec_limits = [(0, 15), (0, 15), (0, 15), (0, 15)]
 class ConfigCECAddress(ConfigSequence):
 	def __init__(self, default, auto_jump=False):
 		ConfigSequence.__init__(self, seperator=".", limits=cec_limits, default=default)
-		self.marked_block = 0
+		self.marked_pos = 0
 		self.overwrite = True
 		self.auto_jump = auto_jump
 
