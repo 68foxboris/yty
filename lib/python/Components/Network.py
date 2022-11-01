@@ -41,8 +41,8 @@ class Network:
 
 	def onRemoteRootFS(self):
 		if self.remoteRootFS is None:
-			from Components.Harddisk import getProcMounts
-			for parts in getProcMounts():
+			from Components import Harddisk
+			for parts in Harddisk.getProcMounts():
 				if parts[1] == '/' and parts[2] == 'nfs':
 					self.remoteRootFS = True
 					break
@@ -72,7 +72,7 @@ class Network:
 		return [int(n) for n in ip.split('.')]
 
 	def getAddrInet(self, iface, callback):
-		data = {'up': False, 'dhcp': False, 'preup': False, 'predown': False, 'dns-nameserver': []}
+		data = {'up': False, 'dhcp': False, 'preup': False, 'predown': False}
 		try:
 			print("[Network] Read /sys/class/net/%s/flags" % iface)
 			data['up'] = int(open('/sys/class/net/%s/flags' % iface).read().strip(), 16) & 1 == 1
@@ -83,6 +83,9 @@ class Network:
 			data['bcast'] = self.convertIP(nit[ni.AF_INET][0]['broadcast'])
 			data['mac'] = nit[ni.AF_LINK][0]['addr'] # mac
 			data['gateway'] = self.convertIP(ni.gateways()['default'][ni.AF_INET][0]) # default gw
+			StatusIPv6 = open("/proc/sys/net/ipv6/conf/all/disable_ipv6", "r").read(1)
+			if not exists("/etc/enigma2/ipv6") and not "1" in StatusIPv6:
+				open("/proc/sys/net/ipv6/conf/all/disable_ipv6", "w").write("1")
 		except:
 			data['dhcp'] = True
 			data['ip'] = [0, 0, 0, 0]
@@ -124,9 +127,6 @@ class Network:
 				fp.write(iface["preup"])
 			if iface["predown"] and "configStrings" not in iface:
 				fp.write(iface["predown"])
-			if iface["dns-nameserver"]:
-				for nameserver in iface["dns-nameserver"]:
-					fp.write("	dns-nameserver %d.%d.%d.%d\n" % tuple(nameserver))
 			fp.write("\n")
 		fp.close()
 		self.configuredNetworkAdapters = self.configuredInterfaces
@@ -134,17 +134,20 @@ class Network:
 
 	def writeNameserverConfig(self):
 		try:
+			Console().ePopen('rm -f /etc/resolv.conf')
 			fp = open('/etc/resolv.conf', 'w')
 			for nameserver in self.nameservers:
 				fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
 			fp.close()
 			if config.usage.dns.value.lower() not in ("dhcp-router", "custom"):
-				fp = open('/etc/enigma2/serverdns.conf', 'w')
+				Console().ePopen('rm -f /etc/enigma2/nameserversdns.conf')
+				fp = open('/etc/enigma2/nameserversdns.conf', 'w')
 				for nameserver in self.nameservers:
 					fp.write("nameserver %d.%d.%d.%d\n" % tuple(nameserver))
 				fp.close()
-		except Exception as err:
-			print("[Network] DNS %s" % err)
+			#self.restartNetwork()
+		except:
+			print("[Network] resolv.conf or nameserversdns.conf - writing failed")
 
 	def loadNetworkConfig(self, iface, callback=None):
 		interfaces = []
@@ -160,7 +163,7 @@ class Network:
 		currif = ""
 		for i in interfaces:
 			split = i.strip().split(' ')
-			if split[0] == "iface":
+			if split[0] == "iface" and split[2] != "inet6":
 				currif = split[1]
 				ifaces[currif] = {}
 				if len(split) == 4 and split[3] == "dhcp":
@@ -189,13 +192,6 @@ class Network:
 				if split[0] in ("pre-down", "post-down"):
 					if "predown" in self.ifaces[currif]:
 						self.ifaces[currif]["predown"] = i
-				if split[0] == "dns-nameserver":
-					if "dns-nameserver" not in self.ifaces[currif]:
-						self.ifaces[currif]["dns-nameserver"] = []
-					dns_ip = self.convertIP(split[1])
-					self.ifaces[currif]["dns-nameserver"].append(dns_ip)
-					if dns_ip not in self.nameservers:
-						self.nameservers.append(dns_ip)
 
 		for ifacename, iface in ifaces.items():
 			if ifacename in self.ifaces:
@@ -228,15 +224,15 @@ class Network:
 		try:
 			if config.usage.dns.value.lower() in ("dhcp-router", "custom"):
 				fp = open('/etc/resolv.conf', 'r')
-				if (os.path.isfile("/etc/enigma2/serverdns.conf")):
-					Console().ePopen('rm /etc/enigma2/serverdns.conf')
+				if (os.path.isfile("/etc/enigma2/nameserversdns.conf")):
+					Console().ePopen('rm /etc/enigma2/nameserversdns.conf')
 			else:
-				fp = open('/etc/enigma2/serverdns.conf', 'r')
+				fp = open('/etc/enigma2/nameserversdns.conf', 'r')
 			resolv = fp.readlines()
 			fp.close()
 			self.nameservers = []
-		except Exception as err:
-			print("[Network] DNS %s" % err)
+		except:
+			print("[Network] resolv.conf or nameserversdns.conf - opening failed")
 
 		for line in resolv:
 			if self.regExpMatch(nameserverPattern, line) is not None:
@@ -366,6 +362,7 @@ class Network:
 					self.nameservers[i] = newnameserver
 
 	def resetNetworkConfig(self, mode='lan', callback=None):
+		self.resetNetworkConsole = Console()
 		self.commands = []
 		self.commands.append(self.avahi_daemon + " stop")
 		for iface in self.ifaces.keys():
@@ -373,7 +370,7 @@ class Network:
 				self.commands.append(self.ip_bin + " addr flush dev " + iface + " scope global")
 		self.commands.append(self.networking_initd + " stop")
 		self.commands.append("killall -9 udhcpc")
-		self.commands.append("rm -f /var/run/udhcpc*")
+		self.commands.append("rm /var/run/udhcpc*")
 		self.resetNetworkConsole.eBatch(self.commands, self.resetNetworkFinishedCB, [mode, callback], debug=True)
 
 	def resetNetworkFinishedCB(self, extra_args):
@@ -398,6 +395,7 @@ class Network:
 		fp.write("\n")
 		fp.close()
 
+		self.resetNetworkConsole = Console()
 		self.commands = []
 		if mode == 'wlan':
 			self.commands.append(self.ifconfig_bin + " eth0 down")
@@ -438,6 +436,7 @@ class Network:
 					statecallback(self.NetworkState)
 
 	def restartNetwork(self, callback=None):
+		self.restartConsole = Console()
 		self.config_ready = False
 		self.msgPlugins()
 		self.commands = []
@@ -448,7 +447,7 @@ class Network:
 				self.commands.append(self.ip_bin + " addr flush dev " + iface + " scope global")
 		self.commands.append(self.networking_initd + " stop")
 		self.commands.append("killall -9 udhcpc")
-		self.commands.append("rm -f /var/run/udhcpc*")
+		self.commands.append("rm /var/run/udhcpc*")
 		self.commands.append(self.networking_initd + " start")
 		self.commands.append(self.avahi_daemon + " start")
 		self.restartConsole.eBatch(self.commands, self.restartNetworkFinished, callback, debug=True)
@@ -591,6 +590,7 @@ class Network:
 				ifnames.append(device.search(line).group()[:-1])
 			except AttributeError:
 				pass
+		fp.close()
 		if iface in ifnames:
 			return True
 
