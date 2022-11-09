@@ -681,6 +681,10 @@ import Components.EpgLoadSave
 Components.EpgLoadSave.EpgCacheSaveCheck()
 Components.EpgLoadSave.EpgCacheLoadCheck()
 
+profile("UserInterface")
+import Screens.UserInterfacePositioner
+Screens.UserInterfacePositioner.InitOsd()
+
 #from enigma import dump_malloc_stats
 #t = eTimer()
 #t.callback.append(dump_malloc_stats)
