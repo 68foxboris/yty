@@ -161,11 +161,52 @@ def InitUsageConfig():
 		choicelist.append((str(i), ngettext("%d minute", "%d minutes", m) % m))
 	config.usage.pip_last_service_timeout = ConfigSelection(default="0", choices=choicelist)
 
-	config.usage.default_path = ConfigText(default="")
-	config.usage.timer_path = ConfigText(default="<default>")
-	config.usage.instantrec_path = ConfigText(default="<default>")
-	config.usage.timeshift_path = ConfigText(default="/media/hdd/")
-	config.usage.allowed_timeshift_paths = ConfigLocations(default=["/media/hdd/"])
+	if not os.path.exists(resolveFilename(SCOPE_HDD)):
+		try:
+			os.mkdir(resolveFilename(SCOPE_HDD), 0o755)
+		except (IOError, OSError):
+			pass
+	defaultValue = resolveFilename(SCOPE_HDD)
+	config.usage.default_path = ConfigSelection(default=defaultValue, choices=[(defaultValue, defaultValue)])
+	config.usage.default_path.load()
+	if config.usage.default_path.saved_value:
+		savedValue = pathjoin(config.usage.default_path.saved_value, "")
+		if savedValue and savedValue != defaultValue:
+			config.usage.default_path.setChoices([(defaultValue, defaultValue), (savedValue, savedValue)], default=defaultValue)
+			config.usage.default_path.value = savedValue
+	config.usage.default_path.save()
+	choiceList = [("<default>", "<default>"), ("<current>", "<current>"), ("<timer>", "<timer>")]
+	config.usage.timer_path = ConfigSelection(default="<default>", choices=choiceList)
+	config.usage.timer_path.load()
+	if config.usage.timer_path.saved_value:
+		savedValue = config.usage.timer_path.saved_value if config.usage.timer_path.saved_value.startswith("<") else pathjoin(config.usage.timer_path.saved_value, "")
+		if savedValue and savedValue not in choiceList:
+			config.usage.timer_path.setChoices(choiceList + [(savedValue, savedValue)], default="<default>")
+			config.usage.timer_path.value = savedValue
+	config.usage.timer_path.save()
+	config.usage.instantrec_path = ConfigSelection(default="<default>", choices=choiceList)
+	config.usage.instantrec_path.load()
+	if config.usage.instantrec_path.saved_value:
+		savedValue = config.usage.instantrec_path.saved_value if config.usage.instantrec_path.saved_value.startswith("<") else pathjoin(config.usage.instantrec_path.saved_value, "")
+		if savedValue and savedValue not in choiceList:
+			config.usage.instantrec_path.setChoices(choiceList + [(savedValue, savedValue)], default="<default>")
+			config.usage.instantrec_path.value = savedValue
+	config.usage.instantrec_path.save()
+	if not os.path.exists(resolveFilename(SCOPE_TIMESHIFT)):
+		try:
+			os.mkdir(resolveFilename(SCOPE_TIMESHIFT), 0o755)
+		except:
+			pass
+	defaultValue = resolveFilename(SCOPE_TIMESHIFT)
+	config.usage.timeshift_path = ConfigSelection(default=defaultValue, choices=[(defaultValue, defaultValue)])
+	config.usage.timeshift_path.load()
+	if config.usage.timeshift_path.saved_value:
+		savedValue = pathjoin(config.usage.timeshift_path.saved_value, "")
+		if savedValue and savedValue != defaultValue:
+			config.usage.timeshift_path.setChoices([(defaultValue, defaultValue), (savedValue, savedValue)], default=defaultValue)
+			config.usage.timeshift_path.value = savedValue
+	config.usage.timeshift_path.save()
+	config.usage.allowed_timeshift_paths = ConfigLocations(default=[resolveFilename(SCOPE_TIMESHIFT)])
 	config.usage.timeshift_skipreturntolive = ConfigYesNo(default=False)
 
 	config.usage.movielist_trashcan = ConfigYesNo(default=True)
