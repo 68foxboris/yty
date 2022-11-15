@@ -1,13 +1,12 @@
-from Components.MenuList import MenuList
+from os.path import split
+from random import shuffle
 
-from Tools.Directories import SCOPE_CURRENT_SKIN, resolveFilename
-from os import path
+from enigma import RT_VALIGN_CENTER, eListboxPythonMultiContent, eServiceCenter, gFont
 
-from enigma import eListboxPythonMultiContent, RT_VALIGN_CENTER, gFont, eServiceCenter
-
-from Tools.LoadPixmap import LoadPixmap
 from skin import applySkinFactor, fonts, parameters
-
+from Components.MenuList import MenuList
+from Tools.Directories import SCOPE_CURRENT_SKIN, resolveFilename
+from Tools.LoadPixmap import LoadPixmap
 
 STATE_PLAY = 0
 STATE_PAUSE = 1
@@ -32,21 +31,21 @@ class PlayList(MenuList):
 			LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, "icons/ico_mp_pause.png")),
 			LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, "icons/ico_mp_stop.png")),
 			LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, "icons/ico_mp_rewind.png")),
-			LoadPixmap(path=resolveFilename(SCOPE_CURRENT_SKIN, "icons/ico_mp_forward.png")),
+			LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, "icons/ico_mp_forward.png")),
 		]
 
-	def PlaylistEntryComponent(self, serviceref, state):
-		res = [serviceref]
-		text = serviceref.getName()
+	def PlaylistEntryComponent(self, serviceReference, state):
+		res = [serviceReference]
+		text = serviceReference.getName()
 		if text == "":
-			text = path.split(serviceref.getPath().split('/')[-1])[1]
+			text = split(serviceReference.getPath().split("/")[-1])[1]
 		x, y, w, h = parameters.get("PlayListName", applySkinFactor(25, 1, 470, 22))
 		res.append((eListboxPythonMultiContent.TYPE_TEXT, x, y, w, h, 0, RT_VALIGN_CENTER, text))
 		try:
 			png = self.icons[state]
 			x, y, w, h = parameters.get("PlayListIcon", applySkinFactor(5, 3, 16, 16))
 			res.append((eListboxPythonMultiContent.TYPE_PIXMAP_ALPHABLEND, x, y, w, h, png))
-		except:
+		except Exception:
 			pass
 		return res
 
@@ -59,12 +58,12 @@ class PlayList(MenuList):
 	def getSelection(self):
 		return self.l.getCurrentSelection() and self.l.getCurrentSelection()[0]
 
-	def addFile(self, serviceref):
-		self.list.append(self.PlaylistEntryComponent(serviceref, STATE_NONE))
+	def addFile(self, serviceReference):
+		self.list.append(self.PlaylistEntryComponent(serviceReference, STATE_NONE))
 
-	def updateFile(self, index, newserviceref):
+	def updateFile(self, index, serviceReference):
 		if index < len(self.list):
-			self.list[index] = self.PlaylistEntryComponent(newserviceref, STATE_NONE)
+			self.list[index] = self.PlaylistEntryComponent(serviceReference, STATE_NONE)
 
 	def deleteFile(self, index):
 		if self.currPlaying >= index:
@@ -106,7 +105,8 @@ class PlayList(MenuList):
 		self.l.setList(self.list)
 
 	def getCurrentIndex(self):
-		return self.currPlaying
+		# return self.currPlaying
+		return MenuList.getCurrentIndex(self)
 
 	def getCurrentEvent(self):
 		l = self.l.getCurrentSelection()
@@ -118,6 +118,12 @@ class PlayList(MenuList):
 
 	def getServiceRefList(self):
 		return [x[0] for x in self.list]
+
+	def playlistShuffle(self):
+		shuffle(self.list)
+		self.l.setList(self.list)
+		self.currPlaying = -1
+		self.oldCurrPlaying = -1
 
 	def __len__(self):
 		return len(self.list)
