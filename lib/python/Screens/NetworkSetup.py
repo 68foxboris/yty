@@ -1,6 +1,7 @@
-from os import unlink, makedirs, listdir
-from os.path import isfile, exists
+from os import remove, rename, strerror, system, unlink
+from os.path import exists
 from Screens.Screen import Screen
+from Screens.Setup import Setup
 from Screens.MessageBox import MessageBox
 from Screens.HelpMenu import HelpableScreen
 from Components.Network import iNetwork
@@ -14,10 +15,12 @@ from Components.config import config, ConfigYesNo, ConfigIP, NoSave, ConfigText,
 from Components.ConfigList import ConfigListScreen
 from Components.PluginComponent import plugins
 from Components.ActionMap import ActionMap, NumberActionMap, HelpableActionMap
-from Tools.Directories import resolveFilename, SCOPE_PLUGINS, SCOPE_CURRENT_SKIN
+from Tools.Directories import resolveFilename, fileReadLines, SCOPE_PLUGINS, SCOPE_CURRENT_SKIN
 from Tools.LoadPixmap import LoadPixmap
 from Plugins.Plugin import PluginDescriptor
 from enigma import eTimer
+
+MODULE_NAME = __name__.split(".")[-1]
 
 
 class NetworkAdapterSelection(Screen, HelpableScreen):
@@ -29,7 +32,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 		self.lan_errortext = _("No working local network adapter found.\nPlease verify that you have attached a network cable and your network is configured correctly.")
 		self.oktext = _("Press OK on your remote control to continue.")
 		self.edittext = _("Press OK to edit the settings.")
-		self.defaulttext = _("Press yellow to set this interface as default interface.")
+		self.defaulttext = _("Press yellow to set this interface as the default interface.")
 		self.restartLanRef = None
 
 		self["key_red"] = StaticText(_("Close"))
@@ -111,11 +114,11 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			self["introduction"].setText(self.edittext)
 			self["DefaultInterfaceAction"].setEnabled(False)
 
-		if num_configured_if < 2 and isfile("/etc/default_gw"):
+		if num_configured_if < 2 and exists("/etc/default_gw"):
 			unlink("/etc/default_gw")
 
-		if isfile("/etc/default_gw"):
-			fp = open('/etc/default_gw', 'r')
+		if exists("/etc/default_gw"):
+			fp = open("/etc/default_gw", "r")
 			result = fp.read()
 			fp.close()
 			default_gw = result
@@ -125,13 +128,13 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 				default_int = True
 			else:
 				default_int = False
-			if iNetwork.getAdapterAttribute(x[1], 'up'):
+			if iNetwork.getAdapterAttribute(x[1], "up"):
 				active_int = True
 			else:
 				active_int = False
 			self.list.append(self.buildInterfaceList(x[1], _(x[0]), default_int, active_int))
 
-		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			self["key_blue"].setText(_("Network wizard"))
 		self["list"].setList(self.list)
 
@@ -140,12 +143,12 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 		num_if = len(self.list)
 		old_default_gw = None
 		num_configured_if = len(iNetwork.getConfiguredAdapters())
-		if isfile("/etc/default_gw"):
-			fp = open('/etc/default_gw', 'r')
+		if exists("/etc/default_gw"):
+			fp = open("/etc/default_gw", "r")
 			old_default_gw = fp.read()
 			fp.close()
 		if num_configured_if > 1 and (not old_default_gw or old_default_gw != selection[0]):
-			fp = open('/etc/default_gw', 'w+')
+			fp = open("/etc/default_gw", "w+")
 			fp.write(selection[0])
 			fp.close()
 			self.restartLan()
@@ -155,7 +158,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 
 	def okbuttonClick(self):
 		selection = self["list"].getCurrent()
-		if selection is not None:
+		if selection != None:
 			self.session.openWithCallback(self.AdapterSetupClosed, AdapterSetupConfiguration, selection[0])
 
 	def AdapterSetupClosed(self, *ret):
@@ -187,114 +190,182 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			self.session.open(MessageBox, _("Finished configuring your network"), type=MessageBox.TYPE_INFO, timeout=10, default=False)
 
 	def openNetworkWizard(self):
-		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			try:
 				from Plugins.SystemPlugins.NetworkWizard.NetworkWizard import NetworkWizard
 			except ImportError:
 				self.session.open(MessageBox, _("The network wizard extension is not installed!\nPlease install it."), type=MessageBox.TYPE_INFO, timeout=10)
 			else:
 				selection = self["list"].getCurrent()
-				if selection is not None:
+				if selection != None:
 					self.session.openWithCallback(self.AdapterSetupClosed, NetworkWizard, selection[0])
 
-
-class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
+class DNSSettings(Setup):
 	def __init__(self, session):
-		Screen.__init__(self, session)
-		HelpableScreen.__init__(self)
-		self.setTitle(_("Configure nameservers"))
-		self.backupNameserverList = iNetwork.getNameserverList()[:]
-		print("[NetworkSetup] backup-list:", self.backupNameserverList)
+		self.dnsInitial = iNetwork.getNameserverList()
+		print("[NetworkSetup] DNSSettings: Initial DNS list: %s." % str(self.dnsInitial))
+		self.dnsOptions = {
+			"custom": [[0, 0, 0, 0]],
+			"dhcp-router": [list(x[1]) for x in self.getNetworkRoutes()],
+			"google": [[8, 8, 8, 8], [8, 8, 4, 4]],
+			"cloudflare": [[1, 1, 1, 1], [1, 0, 0, 1]],
+			"opendns-familyshield": [[208, 67, 222, 123], [208, 67, 220, 123]],
+			"opendns-home": [[208, 67, 222, 222], [208, 67, 220, 220]]
+		}
+		option = self.dnsCheck(self.dnsInitial, refresh=False)
+		self.dnsServers = self.dnsOptions[option][:]
+		self.entryAdded = False
+		Setup.__init__(self, session=session, setup="DNS")
+		self["key_yellow"] = StaticText(_("Add"))
+		self["key_blue"] = StaticText("")
+		dnsDescription = _("DNS (Dynamic Name Server) Actions")
+		self["addAction"] = HelpableActionMap(self, ["DNSSettingsActions"], {
+			"dnsAdd": (self.addDNSServer, _("Add a DNS entry"))
+		}, prio=0, description=dnsDescription)
+		self["removeAction"] = HelpableActionMap(self, ["DNSSettingsActions"], {
+			"dnsRemove": (self.removeDNSServer, _("Remove a DNS entry"))
+		}, prio=0, description=dnsDescription)
+		self["removeAction"].setEnabled(False)
+		self["moveUpAction"] = HelpableActionMap(self, ["DNSSettingsActions"], {
+			"moveUp": (self.moveEntryUp, _("Move the current DNS entry up one line"))
+		}, prio=0, description=dnsDescription)
+		self["moveUpAction"].setEnabled(False)
+		self["moveDownAction"] = HelpableActionMap(self, ["DNSSettingsActions"], {
+			"moveDown": (self.moveEntryDown, _("Move the current DNS entry down one line"))
+		}, prio=0, description=dnsDescription)
+		self["moveDownAction"].setEnabled(False)
 
-		self["key_red"] = StaticText(_("Cancel"))
-		self["key_green"] = StaticText(_("Add"))
-		self["key_yellow"] = StaticText(_("Delete"))
+		self.updateControls()
 
-		self["introduction"] = StaticText(_("Press OK to activate the settings."))
-		self.createConfig()
+	def dnsCheck(self, dnsServers, refresh=True):
+		def dnsRefresh(refresh):
+			if refresh:
+				for item in self["config"].getList():
+					if item[1] == config.usage.dns:
+						self["config"].invalidate(item)
+						break
 
-		self["OkCancelActions"] = HelpableActionMap(self, ["OkCancelActions"],
-			{
-			"cancel": (self.cancel, _("Exit nameserver configuration")),
-			"ok": (self.ok, _("Activate current configuration")),
-			})
-
-		self["ColorActions"] = HelpableActionMap(self, ["ColorActions"],
-			{
-			"red": (self.cancel, _("Exit nameserver configuration")),
-			"green": (self.add, _("Add a nameserver entry")),
-			"yellow": (self.remove, _("Remove a nameserver entry")),
-			})
-
-		self["actions"] = NumberActionMap(["SetupActions"],
-		{
-			"ok": self.ok,
-		}, -2)
-
-		self.list = []
-		ConfigListScreen.__init__(self, self.list)
-		self.createSetup()
-
-	def createConfig(self):
-		self.nameservers = iNetwork.getNameserverList()
-		if config.usage.dns.value == 'google':
-			self.nameserverEntries = [NoSave(ConfigIP(default=[8, 8, 8, 8])), NoSave(ConfigIP(default=[8, 8, 4, 4]))]
-		elif config.usage.dns.value == 'cloudflare':
-			self.nameserverEntries = [NoSave(ConfigIP(default=[1, 1, 1, 1])), NoSave(ConfigIP(default=[1, 0, 0, 1]))]
-		elif config.usage.dns.value == 'opendns-familyshield':
-			self.nameserverEntries = [NoSave(ConfigIP(default=[208, 67, 222, 123])), NoSave(ConfigIP(default=[208, 67, 220, 123]))]
-		elif config.usage.dns.value == 'opendns-home':
-			self.nameserverEntries = [NoSave(ConfigIP(default=[208, 67, 222, 222])), NoSave(ConfigIP(default=[208, 67, 220, 220]))]
-		elif config.usage.dns.value == 'custom' or config.usage.dns.value == 'dhcp-router':
-			self.nameserverEntries = [NoSave(ConfigIP(default=nameserver)) for nameserver in self.nameservers]
+		for option in self.dnsOptions.keys():
+			if dnsServers == self.dnsOptions[option]:
+				if option != "custom":
+					self.dnsOptions["custom"] = [[0, 0, 0, 0]]
+				config.usage.dns.value = option
+				dnsRefresh(refresh)
+				return option
+		option = "custom"
+		self.dnsOptions[option] = dnsServers[:]
+		config.usage.dns.value = option
+		dnsRefresh(refresh)
+		return option
 
 	def createSetup(self):
-		self.list = []
-		self.DNSEntry = getConfigListEntry(_("Nameserver configuration"), config.usage.dns)
-		self.list.append(self.DNSEntry)
+		Setup.createSetupList(self)
+		dnsList = self["config"].getList()
+		self.dnsStart = len(dnsList)
+		for item, entry in enumerate([NoSave(ConfigIP(default=x)) for x in self.dnsServers], start=1):
+			dnsList.append(getConfigListEntry(_("Name server %d") % item, entry, _("Enter DNS (Dynamic Name Server) %d's IP address.") % item))
+		self.dnsLength = item
+		if self.entryAdded:
+			entry.default = [256, 256, 256, 256]  # This triggers a cancel confirmation for unedited new entries.
+			self.entryAdded = False
+		self["config"].setList(dnsList)
 
-		i = 1
-		for x in self.nameserverEntries:
-			self.list.append(getConfigListEntry(_("Nameserver %d") % (i), x))
-			i += 1
+	def changedEntry(self):
+		current = self["config"].getCurrent()[1]
+		index = self["config"].getCurrentIndex()
+		dnsList = self["config"].getList()
+		self.dnsStart = len(dnsList)
+		if current == config.usage.dns:
+			self.dnsServers = self.dnsOptions[config.usage.dns.value][:]
+		elif self.dnsStart <= index < self.dnsStart + self.dnsLength:
+			self.dnsServers[index - self.dnsStart] = current.value[:]
+			option = self.dnsCheck(self.dnsServers, refresh=True)
+		Setup.changedEntry(self)
+		self.updateControls()
 
-		self["config"].list = self.list
+	def selectionChanged(self):
+		Setup.selectionChanged(self)
+		self.updateControls()
 
-	def ok(self):
-		self.RefreshNameServerUsed()
+	def updateControls(self):
+		dnsList = self["config"].getList()
+		self.dnsStart = len(dnsList)
+		for item, entry in enumerate([NoSave(ConfigIP(default=x)) for x in self.dnsServers], start=1):
+			dnsList.append(getConfigListEntry(_("Name server %d") % item, entry, _("Enter DNS (Dynamic Name Server) %d's IP address.") % item))
+		self.dnsLength = item
+		index = self["config"].getCurrentIndex() - self.dnsStart
+		if -1 <= index < self.dnsLength:
+			self["key_blue"].setText(_("Delete") if self.dnsLength > 1 or self.dnsServers[0] != [0, 0, 0, 0] else "")
+			self["removeAction"].setEnabled(self.dnsLength > 1 or self.dnsServers[0] != [0, 0, 0, 0])
+			self["moveUpAction"].setEnabled(index > 0)
+			self["moveDownAction"].setEnabled(index < self.dnsLength - 1)
+		else:
+			self["key_blue"].setText("")
+			self["removeAction"].setEnabled(False)
+			self["moveUpAction"].setEnabled(False)
+			self["moveDownAction"].setEnabled(False)
+
+	def keySave(self):
 		iNetwork.clearNameservers()
-		for nameserver in self.nameserverEntries:
-			iNetwork.addNameserver(nameserver.value)
-		iNetwork.writeNetworkConfig()
-		config.usage.dns.save()
-		self.close()
+		for dnsServer in self.dnsServers:
+			iNetwork.addNameserver(dnsServer)
+		print("[NetworkSetup] DNSSettings: Saved DNS list: %s." % str(iNetwork.getNameserverList()))
+		# iNetwork.saveNameserverConfig()
+		iNetwork.writeNameserverConfig()
+		Setup.keySave(self)
 
-	def run(self):
-		self.ok()
-
-	def cancel(self):
-		self.close()
-
-	def add(self):
-		iNetwork.addNameserver([0, 0, 0, 0])
-		self.createConfig()
+	def addDNSServer(self):
+		self.entryAdded = True
+		self.dnsServers = self.dnsServers + [[0, 0, 0, 0]]
+		self.dnsCheck(self.dnsServers, refresh=False)
 		self.createSetup()
+		self["config"].setCurrentIndex(self.dnsStart + self.dnsLength - 1)
 
-	def remove(self):
-		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
-		index = self["config"].getCurrentIndex()
-		if index < len(self.nameservers):
-			iNetwork.removeNameserver(self.nameservers[index])
-			self.createConfig()
-			self.createSetup()
+	def removeDNSServer(self):
+		index = self["config"].getCurrentIndex() - self.dnsStart
+		if self.dnsLength == 1:
+			self.dnsServers = [[0, 0, 0, 0]]
+		else:
+			del self.dnsServers[index]
+		self.dnsCheck(self.dnsServers, refresh=False)
+		self.createSetup()
+		if index == self.dnsLength:
+			index -= 1
+		self["config"].setCurrentIndex(self.dnsStart + index)
 
-	def RefreshNameServerUsed(self):
-		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
-		index = self["config"].getCurrentIndex()
-		if index < len(self.nameservers):
-			self.createConfig()
-			self.createSetup()
+	def moveEntryUp(self):
+		index = self["config"].getCurrentIndex() - self.dnsStart - 1
+		self.dnsServers.insert(index, self.dnsServers.pop(index + 1))
+		self.dnsCheck(self.dnsServers, refresh=False)
+		self.createSetup()
+		self["config"].setCurrentIndex(self.dnsStart + index)
 
+	def moveEntryDown(self):
+		index = self["config"].getCurrentIndex() - self.dnsStart + 1
+		self.dnsServers.insert(index, self.dnsServers.pop(index - 1))
+		self.dnsCheck(self.dnsServers, refresh=False)
+		self.createSetup()
+		self["config"].setCurrentIndex(self.dnsStart + index)
+
+	def getNetworkRoutes(self):
+		# # cat /proc/net/route
+		# Iface   Destination     Gateway         Flags   RefCnt  Use     Metric  Mask            MTU     Window  IRTT
+		# eth0    00000000        FE08A8C0        0003    0       0       0       00000000        0       0       0
+		# eth0    0008A8C0        00000000        0001    0       0       0       00FFFFFF        0       0       0
+		gateways = []
+		lines = []
+		lines = fileReadLines("/proc/net/route", lines, source=MODULE_NAME)
+		headings = lines.pop(0)
+		for line in lines:
+			data = line.split()
+			if data[1] == "00000000" and int(data[3]) & 0x03 and data[7] == "00000000":  # If int(flags) & 0x03 is True this is a gateway (0x02) and it is up (0x01).
+				gateways.append((data[0], tuple(reversed([int(data[2][x:x + 2], 16) for x in range(0, len(data[2]), 2)]))))
+		return gateways
+
+
+class NameserverSetup(DNSSettings):
+	def __init__(self, session):
+		DNSSettings.__init__(self, session=session)
 
 class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 	def __init__(self, session, networkinfo, essid=None):
@@ -368,14 +439,14 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 	def layoutFinished(self):
 		self["DNS1"].setText(self.primaryDNS.getText())
 		self["DNS2"].setText(self.secondaryDNS.getText())
-		if self.ipConfigEntry.getText() is not None:
+		if self.ipConfigEntry.getText() != None:
 			if self.ipConfigEntry.getText() == "0.0.0.0":
 				self["IP"].setText(_("N/A"))
 			else:
 				self["IP"].setText(self.ipConfigEntry.getText())
 		else:
 			self["IP"].setText(_("N/A"))
-		if self.netmaskConfigEntry.getText() is not None:
+		if self.netmaskConfigEntry.getText() != None:
 			if self.netmaskConfigEntry.getText() == "0.0.0.0":
 				self["Mask"].setText(_("N/A"))
 			else:
@@ -424,7 +495,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 
 			self.wsconfig = self.ws.loadConfig(self.iface)
 			if self.essid is None:
-				self.essid = self.wsconfig['ssid']
+				self.essid = self.wsconfig["ssid"]
 
 			config.plugins.wlan.hiddenessid = NoSave(ConfigYesNo(default=self.wsconfig['hiddenessid']))
 			config.plugins.wlan.essid = NoSave(ConfigText(default=self.essid, visible_width=50, fixed_size=False))
@@ -442,7 +513,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			self.dhcpdefault = False
 		self.hasGatewayConfigEntry = NoSave(ConfigYesNo(default=self.dhcpdefault or False))
 		self.gatewayConfigEntry = NoSave(ConfigIP(default=iNetwork.getAdapterAttribute(self.iface, "gateway") or [0, 0, 0, 0]))
-		nameserver = (iNetwork.getNameserverList(dhcp=True) + [[0, 0, 0, 0]] * 2)[0:2]
+		nameserver = (iNetwork.getNameserverList() + [[0, 0, 0, 0]] * 2)[0:2]
 		self.primaryDNS = NoSave(ConfigIP(default=nameserver[0]))
 		self.secondaryDNS = NoSave(ConfigIP(default=nameserver[1]))
 
@@ -455,23 +526,24 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			self.dhcpEntry = getConfigListEntry(_("Use DHCP"), self.dhcpConfigEntry)
 			self.list.append(self.dhcpEntry)
 			if not self.dhcpConfigEntry.value:
-				self.list.append(getConfigListEntry(_('IP address'), self.ipConfigEntry))
-				self.list.append(getConfigListEntry(_('Netmask'), self.netmaskConfigEntry))
-				self.gatewayEntry = getConfigListEntry(_('Use a gateway'), self.hasGatewayConfigEntry)
+				self.list.append(getConfigListEntry(_("IP address"), self.ipConfigEntry))
+				self.list.append(getConfigListEntry(_("Netmask"), self.netmaskConfigEntry))
+				self.gatewayEntry = getConfigListEntry(_("Use a gateway"), self.hasGatewayConfigEntry)
 				self.list.append(self.gatewayEntry)
 				if self.hasGatewayConfigEntry.value:
-					self.list.append(getConfigListEntry(_('Gateway'), self.gatewayConfigEntry))
+					self.list.append(getConfigListEntry(_("Gateway"), self.gatewayConfigEntry))
 
 			self.extended = None
 			self.configStrings = None
 			for p in plugins.getPlugins(PluginDescriptor.WHERE_NETWORKSETUP):
 				callFnc = p.fnc["ifaceSupported"](self.iface)
-				if callFnc is not None:
+				if callFnc != None:
 					if "WlanPluginEntry" in p.fnc: # internally used only for WLAN Plugin
 						self.extended = callFnc
 						if "configStrings" in p.fnc:
 							self.configStrings = p.fnc["configStrings"]
 						isExistBcmWifi = exists("/tmp/bcm/" + self.iface)
+
 						if not isExistBcmWifi:
 							self.hiddenSSID = getConfigListEntry(_("Hidden network"), config.plugins.wlan.hiddenessid)
 							self.list.append(self.hiddenSSID)
@@ -484,7 +556,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 						self.encryptionKey = getConfigListEntry(_("Encryption key"), config.plugins.wlan.psk)
 
 						if config.plugins.wlan.encryption.value != "Unencrypted":
-							if config.plugins.wlan.encryption.value == 'WEP':
+							if config.plugins.wlan.encryption.value == "WEP":
 								if not isExistBcmWifi:
 									self.list.append(self.encryptionType)
 							self.list.append(self.encryptionKey)
@@ -520,7 +592,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			if self.finished_cb:
 				self.finished_cb()
 			else:
-				self.close('cancel')
+				self.close("cancel")
 
 	def keySaveConfirm(self, ret=False):
 		if ret:
@@ -562,7 +634,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			else:
 				iNetwork.removeAdapterAttribute(self.iface, "gateway")
 
-			if self.extended is not None and self.configStrings is not None:
+			if self.extended != None and self.configStrings != None:
 				iNetwork.setAdapterAttribute(self.iface, "configStrings", self.configStrings(self.iface))
 				self.ws.writeConfig(self.iface)
 
@@ -604,7 +676,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 				self.session.openWithCallback(self.ConfigfinishedCB, MessageBox, _("Your network configuration has been activated."), type=MessageBox.TYPE_INFO, timeout=10)
 
 	def ConfigfinishedCB(self, data):
-		if data is not None and data:
+		if data != None and data:
 			self.close('ok')
 
 	def keyCancelConfirm(self, result):
@@ -613,19 +685,19 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 		if not self.oldInterfaceState:
 			iNetwork.deactivateInterface(self.iface, self.keyCancelCB)
 		else:
-			self.close('cancel')
+			self.close("cancel")
 
 	def keyCancel(self):
 		self.hideInputHelp()
 		if self["config"].isChanged():
-			self.session.openWithCallback(self.keyCancelConfirm, MessageBox, _("Really close without saving settings?"))
+			self.session.openWithCallback(self.keyCancelConfirm, MessageBox, _("Really close without saving settings?"), default=False)
 		else:
-			self.close('cancel')
+			self.close("cancel")
 
 	def keyCancelCB(self, data):
-		if data is not None:
+		if data != None:
 			if data:
-				self.close('cancel')
+				self.close("cancel")
 
 	def runAsync(self, finished_cb):
 		self.finished_cb = finished_cb
@@ -645,10 +717,10 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 	def hideInputHelp(self):
 		current = self["config"].getCurrent()
 		if current == self.wlanSSID:
-			if current[1].help_window.instance is not None:
+			if current[1].help_window.instance != None:
 				current[1].help_window.instance.hide()
 		elif current == self.encryptionKey and config.plugins.wlan.encryption.value != "Unencrypted":
-			if current[1].help_window.instance is not None:
+			if current[1].help_window.instance != None:
 				current[1].help_window.instance.hide()
 
 
@@ -731,7 +803,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 
 	def ok(self):
 		self.cleanup()
-		if self["menulist"].getCurrent()[1] == 'edit':
+		if self["menulist"].getCurrent()[1] == "edit":
 			if iNetwork.isWirelessInterface(self.iface):
 				try:
 					from Plugins.SystemPlugins.WirelessLan.plugin import WlanScan
@@ -741,14 +813,14 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 					if self.queryWirelessDevice(self.iface):
 						self.session.openWithCallback(self.AdapterSetupClosed, AdapterSetup, self.iface)
 					else:
-						self.showErrorMessage()	# Display Wlan not available Message
+						self.showErrorMessage()	 # Display Wlan not available Message
 			else:
 				self.session.openWithCallback(self.AdapterSetupClosed, AdapterSetup, self.iface)
-		if self["menulist"].getCurrent()[1] == 'test':
+		if self["menulist"].getCurrent()[1] == "test":
 			self.session.open(NetworkAdapterTest, self.iface)
-		if self["menulist"].getCurrent()[1] == 'dns':
+		if self["menulist"].getCurrent()[1] == "dns":
 			self.session.open(NameserverSetup)
-		if self["menulist"].getCurrent()[1] == 'scanwlan':
+		if self["menulist"].getCurrent()[1] == "scanwlan":
 			try:
 				from Plugins.SystemPlugins.WirelessLan.plugin import WlanScan
 			except ImportError:
@@ -757,8 +829,8 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 				if self.queryWirelessDevice(self.iface):
 					self.session.openWithCallback(self.WlanScanClosed, WlanScan, self.iface)
 				else:
-					self.showErrorMessage()	# Display Wlan not available Message
-		if self["menulist"].getCurrent()[1] == 'wlanstatus':
+					self.showErrorMessage()	 # Display Wlan not available Message
+		if self["menulist"].getCurrent()[1] == "wlanstatus":
 			try:
 				from Plugins.SystemPlugins.WirelessLan.plugin import WlanStatus
 			except ImportError:
@@ -767,13 +839,13 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 				if self.queryWirelessDevice(self.iface):
 					self.session.openWithCallback(self.WlanStatusClosed, WlanStatus, self.iface)
 				else:
-					self.showErrorMessage()	# Display Wlan not available Message
-		if self["menulist"].getCurrent()[1] == 'lanrestart':
+					self.showErrorMessage()	 # Display Wlan not available Message
+		if self["menulist"].getCurrent()[1] == "lanrestart":
 			self.session.openWithCallback(self.restartLan, MessageBox, (_("Are you sure you want to restart your network interfaces?\n\n") + self.oktext))
-		if self["menulist"].getCurrent()[1] == 'openwizard':
+		if self["menulist"].getCurrent()[1] == "openwizard":
 			from Plugins.SystemPlugins.NetworkWizard.NetworkWizard import NetworkWizard
 			self.session.openWithCallback(self.AdapterSetupClosed, NetworkWizard, self.iface)
-		if self["menulist"].getCurrent()[1][0] == 'extendedSetup':
+		if self["menulist"].getCurrent()[1][0] == "extendedSetup":
 			self.extended = self["menulist"].getCurrent()[1][2]
 			self.extended(self.session, self.iface)
 
@@ -799,21 +871,21 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		self.loadDescription()
 
 	def loadDescription(self):
-		if self["menulist"].getCurrent()[1] == 'edit':
+		if self["menulist"].getCurrent()[1] == "edit":
 			self["description"].setText(_("Edit the network configuration of your receiver.\n") + self.oktext)
-		if self["menulist"].getCurrent()[1] == 'test':
+		if self["menulist"].getCurrent()[1] == "test":
 			self["description"].setText(_("Test the network configuration of your receiver.\n") + self.oktext)
-		if self["menulist"].getCurrent()[1] == 'dns':
+		if self["menulist"].getCurrent()[1] == "dns":
 			self["description"].setText(_("Edit the nameserver configuration of your receiver.\n") + self.oktext)
-		if self["menulist"].getCurrent()[1] == 'scanwlan':
+		if self["menulist"].getCurrent()[1] == "scanwlan":
 			self["description"].setText(_("Scan your network for wireless access points and connect to them using your selected wireless device.\n") + self.oktext)
-		if self["menulist"].getCurrent()[1] == 'wlanstatus':
+		if self["menulist"].getCurrent()[1] == "wlanstatus":
 			self["description"].setText(_("Shows the state of your wireless LAN connection.\n") + self.oktext)
-		if self["menulist"].getCurrent()[1] == 'lanrestart':
+		if self["menulist"].getCurrent()[1] == "lanrestart":
 			self["description"].setText(_("Restart your network connection and interfaces.\n") + self.oktext)
-		if self["menulist"].getCurrent()[1] == 'openwizard':
+		if self["menulist"].getCurrent()[1] == "openwizard":
 			self["description"].setText(_("Use the network wizard to configure your network\n") + self.oktext)
-		if self["menulist"].getCurrent()[1][0] == 'extendedSetup':
+		if self["menulist"].getCurrent()[1][0] == "extendedSetup":
 			self["description"].setText(_(self["menulist"].getCurrent()[1][1]) + self.oktext)
 
 	def updateStatusbar(self, data=None):
@@ -848,9 +920,9 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		self.extendedSetup = None
 		for p in plugins.getPlugins(PluginDescriptor.WHERE_NETWORKSETUP):
 			callFnc = p.fnc["ifaceSupported"](self.iface)
-			if callFnc is not None:
+			if callFnc != None:
 				self.extended = callFnc
-				if "WlanPluginEntry" in p.fnc: # internally used only for WLAN Plugin
+				if "WlanPluginEntry" in p.fnc:  # internally used only for WLAN Plugin
 					menu.append((_("Scan wireless networks"), "scanwlan"))
 					if iNetwork.getAdapterAttribute(self.iface, "up"):
 						menu.append((_("Show WLAN status"), "wlanstatus"))
@@ -858,22 +930,22 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 					if "menuEntryName" in p.fnc:
 						menuEntryName = p.fnc["menuEntryName"](self.iface)
 					else:
-						menuEntryName = _('Extended setup...')
+						menuEntryName = _("Extended setup...")
 					if "menuEntryDescription" in p.fnc:
 						menuEntryDescription = p.fnc["menuEntryDescription"](self.iface)
 					else:
-						menuEntryDescription = _('Extended network setup plugin...')
-					self.extendedSetup = ('extendedSetup', menuEntryDescription, self.extended)
+						menuEntryDescription = _("Extended network setup plugin...")
+					self.extendedSetup = ("extendedSetup", menuEntryDescription, self.extended)
 					menu.append((menuEntryName, self.extendedSetup))
 
-		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			menu.append((_("Network wizard"), "openwizard"))
 
 		return menu
 
 	def AdapterSetupClosed(self, *ret):
-		if ret is not None and len(ret):
-			if ret[0] == 'ok' and (iNetwork.isWirelessInterface(self.iface) and iNetwork.getAdapterAttribute(self.iface, "up")):
+		if ret != None and len(ret):
+			if ret[0] == "ok" and (iNetwork.isWirelessInterface(self.iface) and iNetwork.getAdapterAttribute(self.iface, "up")):
 				try:
 					from Plugins.SystemPlugins.WirelessLan.plugin import WlanStatus
 				except ImportError:
@@ -882,20 +954,20 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 					if self.queryWirelessDevice(self.iface):
 						self.session.openWithCallback(self.WlanStatusClosed, WlanStatus, self.iface)
 					else:
-						self.showErrorMessage()	# Display Wlan not available Message
+						self.showErrorMessage()	 # Display Wlan not available Message.
 			else:
 				self.updateStatusbar()
 		else:
 			self.updateStatusbar()
 
 	def WlanStatusClosed(self, *ret):
-		if ret is not None and len(ret):
+		if ret != None and len(ret):
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
 			iStatus.stopWlanConsole()
 			self.updateStatusbar()
 
 	def WlanScanClosed(self, *ret):
-		if ret[0] is not None:
+		if ret[0] != None:
 			self.session.openWithCallback(self.AdapterSetupClosed, AdapterSetup, self.iface, ret[0])
 		else:
 			from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
@@ -923,7 +995,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 		self.LinkState = None
 		for line in data.splitlines():
 			line = line.strip()
-			if 'Link detected:' in line:
+			if "Link detected:" in line:
 				if "yes" in line:
 					self.LinkState = True
 				else:
@@ -951,9 +1023,9 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 
 	def getInfoCB(self, data, status):
 		self.LinkState = None
-		if data is not None:
+		if data != None:
 			if data:
-				if status is not None:
+				if status != None:
 					if status[self.iface]["essid"] == "off" or status[self.iface]["accesspoint"] == "Not-Associated" or not status[self.iface]["accesspoint"]:
 						self.LinkState = False
 						self["statuspic"].setPixmapNum(1)
@@ -1054,13 +1126,13 @@ class NetworkAdapterTest(Screen):
 		self.runTest()
 
 	def updownhandler(self, direction):
-		if direction == 'up':
+		if direction == "up":
 			if self.activebutton >= 2:
 				self.activebutton -= 1
 			else:
 				self.activebutton = 6
 			self.setActiveButton(self.activebutton)
-		if direction == 'down':
+		if direction == "down":
 			if self.activebutton <= 5:
 				self.activebutton += 1
 			else:
@@ -1151,7 +1223,7 @@ class NetworkAdapterTest(Screen):
 
 	def doStep4(self):
 		self["Dhcptext"].setForegroundColorNum(1)
-		if iNetwork.getAdapterAttribute(self.iface, 'dhcp'):
+		if iNetwork.getAdapterAttribute(self.iface, "dhcp"):
 			self["Dhcp"].setForegroundColorNum(2)
 			self["Dhcp"].setText(_("enabled"))
 			self["DhcpInfo_Check"].setPixmapNum(0)
@@ -1350,6 +1422,7 @@ class NetworkAdapterTest(Screen):
 		self.steptimer = True
 		self.nextStepTimer.start(300)
 
+
 	def DNSLookupdataAvail(self, data):
 		if data <= 2:
 			self["DNS"].setForegroundColorNum(2)
@@ -1373,10 +1446,11 @@ class NetworkAdapterTest(Screen):
 		self["updown_actions"].setEnabled(True)
 		self.activebutton = 6
 
+
 	def getInfoCB(self, data, status):
-		if data is not None:
+		if data != None:
 			if data:
-				if status is not None:
+				if status != None:
 					if status[self.iface]["essid"] == "off" or status[self.iface]["accesspoint"] == "Not-Associated" or not status[self.iface]["accesspoint"]:
 						self["Network"].setForegroundColorNum(1)
 						self["Network"].setText(_("disconnected"))
