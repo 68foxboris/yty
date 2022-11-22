@@ -127,8 +127,7 @@ class TimerEntry(ConfigListScreen, Screen):
 		self.timerentry_renamerepeat = ConfigYesNo(default=rename_repeat)
 		self.timerentry_pipzap = ConfigYesNo(default=pipzap)
 		self.timerentry_conflictdetection = ConfigYesNo(default=conflict_detection)
-
-		self.timerentry_date = ConfigDateTime(default=self.timer.begin, formatstring=_("%d.%B %Y"), increment=86400)
+		self.timerentry_date = ConfigDateTime(default=self.timer.begin, formatstring=config.usage.date.full.value, increment=86400)
 		self.timerentry_starttime = ConfigClock(default=self.timer.begin)
 		self.timerentry_endtime = ConfigClock(default=self.timer.end)
 		self.timerentry_showendtime = ConfigSelection(default=((self.timer.end - self.timer.begin) > 4), choices=[(True, _("yes")), (False, _("no"))])
@@ -143,11 +142,16 @@ class TimerEntry(ConfigListScreen, Screen):
 		if default not in locations:
 			locations.append(default)
 		self.timerentry_fallbackdirname = ConfigSelection(default=default, choices=locations)
-
-		self.timerentry_repeatedbegindate = ConfigDateTime(default=self.timer.repeatedbegindate, formatstring=_("%d.%B %Y"), increment=86400)
-
-		self.timerentry_weekday = ConfigSelection(default=weekday_table[weekday], choices=[("mon", _("Monday")), ("tue", _("Tuesday")), ("wed", _("Wednesday")), ("thu", _("Thursday")), ("fri", _("Friday")), ("sat", _("Saturday")), ("sun", _("Sunday"))])
-
+		self.timerentry_repeatedbegindate = ConfigDateTime(default=self.timer.repeatedbegindate, formatstring=config.usage.date.full.value, increment=86400)
+		self.timerentry_weekday = ConfigSelection(default=weekday_table[weekday], choices=[
+			("mon", _("Monday")),
+			("tue", _("Tuesday")),
+			("wed", _("Wednesday")),
+			("thu", _("Thursday")),
+			("fri", _("Friday")),
+			("sat", _("Saturday")),
+			("sun", _("Sunday"))
+		])
 		self.timerentry_day = ConfigSubList()
 		for x in (0, 1, 2, 3, 4, 5, 6):
 			self.timerentry_day.append(ConfigYesNo(default=day[x]))
@@ -591,7 +595,7 @@ class TimerLog(Screen):
 		self.updateText()
 
 	def fillLogList(self):
-		self.list = [(str(strftime("%Y-%m-%d %H-%M", localtime(x[0])) + " - " + x[2]), x) for x in self.log_entries]
+		self.list = [(str(strftime(config.usage.date.daylong.value + " " + config.usage.time.short.value, localtime(x[0])) + " - " + x[2]), x) for x in self.log_entries]
 
 	def clearLog(self):
 		self.log_entries = []

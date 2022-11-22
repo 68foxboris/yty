@@ -993,7 +993,7 @@ self.autoResize()
 		</widget>
 	</screen>
 	<!-- Main menu -->
-	<!--<screen name="menu_mainmenu" position="center,center" size="380,285" title="Main menu">
+	<screen name="menu_mainmenu" position="center,center" size="380,285" title="Main menu">
 		<widget source="title" render="Label" position="170,10" size="200,35" font="Regular;23" />
 		<widget source="menu" render="Listbox" position="170,55" size="200,225" scrollbarMode="showOnDemand">
 			<convert type="StringList" />
@@ -1034,7 +1034,7 @@ self.autoResize()
 			<convert type="MenuEntryCompare">subtitle_selection</convert>
 			<convert type="ConditionalShowHide"/>
 		</widget>
-	</screen>-->
+	</screen>
 	<!-- Menu screens -->
 	<screen name="Menu" position="center,center" size="380,285" title="Main menu">
 		<widget source="title" render="Label" position="10,10" size="360,35" font="Regular;23"/>
@@ -1160,6 +1160,7 @@ self.instance.move(ePoint(orgpos.x() + (orgwidth - newwidth) // 2, orgpos.y() + 
 	<screen name="Mute" position="50,50" zPosition="10" size="34,45" backgroundColor="transparent" title="Mute" flags="wfNoBorder">
 		<ePixmap position="0,0" size="34,45" pixmap="mute.png" alphatest="on"/>
 	</screen>
+	<!-- Nameserver -->
 	<screen name="NameserverSetup" position="center,center" size="560,400" title="Nameserver setup">
 		<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on"/>
 		<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on"/>
@@ -1611,8 +1612,8 @@ self.instance.move(ePoint(orgpos.x() + (orgwidth - newwidth) // 2, orgpos.y() + 
   		<widget name="servicename" position="143,60" size="315,55" font="Regular;25" halign="center" valign="center"/>
 	</screen>
 	<!-- BufferIndicator -->
-	<screen name="BufferIndicator" title="Channel" position="c-100,45" size="320,35" backgroundColor="transparent" flags="wfNoBorder" zPosition="100">
-		<widget name="status" position="0,0" size="320,35" backgroundColor="transparent" transparent="1" font="Regular;26" borderColor="black" borderWidth="2" valign="center" halign="center"/>
+	<screen name="BufferIndicator" title="Channel" position="c-100,45" size="200,35" backgroundColor="transparent" flags="wfNoBorder" zPosition="100">
+		<widget name="status" position="0,0" size="200,35" backgroundColor="transparent" transparent="1" font="Regular;26" borderColor="black" borderWidth="2" valign="center" halign="center"/>
 	</screen>
 	<!-- Numerical help dialog -->
 	<screen name="NumericalTextInputHelpDialog" position="190,400" zPosition="2" size="424,124" backgroundColor="#202020" flags="wfNoBorder">

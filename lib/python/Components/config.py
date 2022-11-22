@@ -804,38 +804,102 @@ clock_limits = [(0, 23), (0, 59)]
 
 class ConfigClock(ConfigSequence):
 	def __init__(self, default):
-		t = localtime(default)
-		ConfigSequence.__init__(self, seperator=":", limits=clock_limits, default=[t.tm_hour, t.tm_min])
+		self.t = localtime(default)
+		ConfigSequence.__init__(self, seperator=":", limits=clock_limits, default=[self.t.tm_hour, self.t.tm_min])
+
+
+	def handleKey(self, key, callback=None):
+		if key == KEY_DELETE and config.usage.time.wide.value:
+			if self._value[0] < 12:
+				self._value[0] += 12
+				self.validate()
+				self.changed()
+		elif key == KEY_BACKSPACE and config.usage.time.wide.value:
+			if self._value[0] >= 12:
+				self._value[0] -= 12
+				self.validate()
+				self.changed()
+		elif key in KEY_NUMBERS or key == KEY_ASCII:
+			if key == KEY_ASCII:
+				code = getPrevAsciiCode()
+				if code < 48 or code > 57:
+					return
+				digit = code - 48
+			else:
+				digit = getKeyNumber(key)
+			hour = self._value[0]
+			pmadjust = 0
+			if config.usage.time.wide.value:
+				if hour > 11:  # All the PM times.
+					hour -= 12
+					pmadjust = 12
+				if hour == 0:  # 12AM & 12PM map to 12.
+					hour = 12
+				if self.markedPos == 0 and digit >= 2:  # Only 0, 1 allowed (12 hour clock).
+					return
+				if self.markedPos == 1 and hour > 9 and digit >= 3:  # Only 10, 11, 12 allowed.
+					return
+				if self.markedPos == 1 and hour < 10 and digit == 0:  # Only 01, 02, ..., 09 allowed.
+					return
+			else:
+				if self.markedPos == 0 and digit >= 3:  # Only 0, 1, 2 allowed (24 hour clock).
+					return
+				if self.markedPos == 1 and hour > 19 and digit >= 4:  # Only 20, 21, 22, 23 allowed.
+					return
+			if self.markedPos == 2 and digit >= 6:  # Only 0, 1, ..., 5 allowed (tens digit of minutes).
+				return
+			value = bytearray(b"%02d%02d" % (hour, self._value[1]))  # Must be ASCII!
+			value[self.markedPos] = digit + ord(b"0")
+			hour = int(value[:2])
+			minute = int(value[2:])
+			if config.usage.time.wide.value:
+				if hour == 12:  # 12AM & 12PM map to back to 00.
+					hour = 0
+				elif hour > 12:
+					hour = 10
+				hour += pmadjust
+			elif hour > 23:
+				hour = 20
+			self._value[0] = hour
+			self._value[1] = minute
+			self.markedPos += 1
+			self.validate()
+			self.changed()
+		else:
+			ConfigSequence.handleKey(self, key, callback)
 
 	def increment(self):
-		# Check if Minutes maxed out
-		if self._value[1] == 59:
-			# Increment Hour, reset Minutes
+		if self._value[1] == 59:  # Check if Minutes maxed out, increment Hour, reset Minutes.
 			if self._value[0] < 23:
 				self._value[0] += 1
 			else:
 				self._value[0] = 0
 			self._value[1] = 0
-		else:
-			# Increment Minutes
+		else:  # Increment Minutes.
 			self._value[1] += 1
-		# Trigger change
-		self.changed()
+		self.changed()  # Trigger change.
 
 	def decrement(self):
-		# Check if Minutes is minimum
-		if self._value[1] == 0:
-			# Decrement Hour, set Minutes to 59
+		if self._value[1] == 0:  # Check if Minutes is minimum, decrement Hour, set Minutes to 59.
 			if self._value[0] > 0:
 				self._value[0] -= 1
 			else:
 				self._value[0] = 23
 			self._value[1] = 59
-		else:
-			# Decrement Minutes
+		else:  # Decrement Minutes.
 			self._value[1] -= 1
-		# Trigger change
-		self.changed()
+		self.changed()  # Trigger change.
+
+	def genText(self):
+		mPos = self.markedPos
+		if mPos >= 2:
+			mPos += 1  # Skip over the separator.
+		newtime = list(self.time)
+		newtime[3] = self._value[0]
+		newtime[4] = self._value[1]
+		newtime = struct_time(newtime)
+		value = strftime(config.usage.time.short.value.replace("%-I", "%_I").replace("%-H", "%_H"), newtime)
+		return value, mPos
 
 
 date_limits = [(1, 31), (1, 12), (1970, 2050)]

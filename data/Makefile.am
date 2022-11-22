@@ -18,7 +18,6 @@ dist_pkgdata_DATA = \
 	setup.xml \
 	skin_subtitles.xml \
 	startwizard.xml \
-	timezone.xml \
 	unicable.xml \
 	userinterfacepositionerwizard.xml
 
