@@ -10,6 +10,7 @@ from Components.MenuList import MenuList
 from Components.ConfigList import ConfigList
 from Components.Sources.List import List
 from enigma import eTimer, eEnv
+from Tools.Directories import fileWriteLine
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
@@ -32,7 +33,7 @@ class Wizard(Screen):
 	instance = None
 
 	def createSummary(self):
-		print("WizardCreateSummary")
+		print("[Wizard] In createSummary.")
 		return WizardSummary
 
 	class parseWizard(ContentHandler):
@@ -80,7 +81,7 @@ class Wizard(Screen):
 				if 'type' in attrs:
 					if attrs["type"] == "dynamic":
 						self.wizard[self.lastStep]["dynamiclist"] = attrs.get("source")
-					#self.wizard[self.lastStep]["list"].append(("Hallo", "test"))
+					# self.wizard[self.lastStep]["list"].append(("Hallo", "test"))
 				if "evaluation" in attrs:
 					# print("[Wizard] Evaluation.")
 					self.wizard[self.lastStep]["listevaluation"] = attrs.get("evaluation")
@@ -151,7 +152,7 @@ class Wizard(Screen):
 	def __init__(self, session, showSteps=True, showStepSlider=True, showList=True, showConfig=True):
 		Screen.__init__(self, session)
 
-		self.isLastWizard = False # can be used to skip a "goodbye"-screen in a wizard
+		self.isLastWizard = False  # can be used to skip a "goodbye"-screen in a wizard
 
 		self.stepHistory = []
 
@@ -194,7 +195,7 @@ class Wizard(Screen):
 			self.list = []
 			self["list"] = List(self.list, enableWrapAround=True)
 			self["list"].onSelectionChanged.append(self.selChanged)
-			#self["list"] = MenuList(self.list, enableWrapAround = True)
+			# self["list"] = MenuList(self.list, enableWrapAround = True)
 
 		self.onShown.append(self.updateValues)
 
@@ -341,7 +342,7 @@ class Wizard(Screen):
 					self.currStep = self.getStepWithID(nextStep)
 
 		print_now = True
-		if (currStep == self.numSteps and self.wizard[currStep]["nextstep"] is None) or self.wizard[currStep]["id"] == "end": # wizard finished
+		if (currStep == self.numSteps and self.wizard[currStep]["nextstep"] is None) or self.wizard[currStep]["id"] == "end":  # wizard finished
 			print("[Wizard] Wizard finished.")
 			self.markDone()
 			self.exit()
@@ -355,7 +356,7 @@ class Wizard(Screen):
 			else:
 				if self.updateValues in self.onShown:
 					self.onShown.remove(self.updateValues)
-
+		fileWriteLine("/proc/progress", "100")
 		if print_now:
 			print("[Wizard] Now: " + str(self.currStep))
 
@@ -423,7 +424,7 @@ class Wizard(Screen):
 			if "onselect" in self.wizard[self.currStep]:
 				print("[Wizard] current:", self["list"].current)
 				self.selection = self["list"].current[-1]
-				#self.selection = self.wizard[self.currStep]["evaluatedlist"][self["list"].l.getCurrentSelectionIndex()][1]
+				# self.selection = self.wizard[self.currStep]["evaluatedlist"][self["list"].l.getCurrentSelectionIndex()][1]
 				exec("self." + self.wizard[self.currStep]["onselect"] + "()")
 		print("[Wizard] In up.")
 
@@ -433,14 +434,14 @@ class Wizard(Screen):
 			self["config"].instance.moveSelection(self["config"].instance.moveDown)
 			self.handleInputHelpers()
 		elif self.showList and len(self.wizard[self.currStep]["evaluatedlist"]) > 0:
-			#self["list"].instance.moveSelection(self["list"].instance.moveDown)
+			# self["list"].instance.moveSelection(self["list"].instance.moveDown)
 			self["list"].selectNext()
 			if "onselect" in self.wizard[self.currStep]:
 				print("[Wizard] current:", self["list"].current)
-				#self.selection = self.wizard[self.currStep]["evaluatedlist"][self["list"].l.getCurrentSelectionIndex()][1]
-				#exec("self." + self.wizard[self.currStep]["onselect"] + "()")
+				# self.selection = self.wizard[self.currStep]["evaluatedlist"][self["list"].l.getCurrentSelectionIndex()][1]
+				# exec("self." + self.wizard[self.currStep]["onselect"] + "()")
 				self.selection = self["list"].current[-1]
-				#self.selection = self.wizard[self.currStep]["evaluatedlist"][self["list"].l.getCurrentSelectionIndex()][1]
+				# self.selection = self.wizard[self.currStep]["evaluatedlist"][self["list"].l.getCurrentSelectionIndex()][1]
 				exec("self." + self.wizard[self.currStep]["onselect"] + "()")
 		print("[Wizard] In down.")
 
@@ -565,18 +566,18 @@ class Wizard(Screen):
 							rootrenderer.instance.setZPosition(1)
 						renderer = renderer.source
 
-				#self["list"].instance.setZPosition(1)
+				# self["list"].instance.setZPosition(1)
 				self.list = []
 				if "dynamiclist" in self.wizard[self.currStep]:
 					print("[Wizard] Dynamic list, calling", self.wizard[self.currStep]["dynamiclist"])
 					newlist = eval("self." + self.wizard[self.currStep]["dynamiclist"] + "()")
-					#self.wizard[self.currStep]["evaluatedlist"] = []
+					# self.wizard[self.currStep]["evaluatedlist"] = []
 					for entry in newlist:
 						#self.wizard[self.currStep]["evaluatedlist"].append(entry)
 						self.list.append(entry)
-					#del self.wizard[self.currStep]["dynamiclist"]
+					# del self.wizard[self.currStep]["dynamiclist"]
 				if len(self.wizard[self.currStep]["list"]) > 0:
-					#self["list"].instance.setZPosition(2)
+					# self["list"].instance.setZPosition(2)
 					for x in self.wizard[self.currStep]["list"]:
 						self.list.append((self.getTranslation(x[0]), x[1]))
 				self.wizard[self.currStep]["evaluatedlist"] = self.list
@@ -611,10 +612,8 @@ class Wizard(Screen):
 						self["config"].l.setList(self.configInstance["config"].list)
 						callbacks = self.configInstance["config"].onSelectionChanged
 						self.configInstance["config"].destroy()
-						print("clearConfigList", self.configInstance["config"], self["config"])
 						self.configInstance["config"] = self["config"]
 						self.configInstance["config"].onSelectionChanged = callbacks
-						print("clearConfigList", self.configInstance["config"], self["config"])
 						self["config"].setCurrentIndex(0)
 				else:
 					self["config"].l.setList([])
@@ -628,7 +627,7 @@ class Wizard(Screen):
 		print("timeoutCounter:", self.timeoutCounter)
 		if self.timeoutCounter == 0:
 			if self.wizard[self.currStep]["timeoutaction"] == "selectnext":
-				print("[Wizard] Selection next item")
+				print("[Wizard] Selection next item.")
 				self.down()
 			else:
 				if self.wizard[self.currStep]["timeoutaction"] == "changestep":
@@ -682,7 +681,7 @@ class WizardManager:
 		self.wizards.append((wizard, precondition, priority))
 
 	def getWizards(self):
-		# x[1] is precondition
+		# x[1] is precondition.
 		for wizard in self.wizards:
 			wizard[0].isLastWizard = False
 		if len(self.wizards) > 0:
