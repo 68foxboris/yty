@@ -20,6 +20,15 @@ visuallyImpairedCommentary = "NAR qad"
 
 def InitUsageConfig():
 	config.usage = ConfigSubsection()
+	if (isfile("/etc/crontab")) and (isfile("/home/root/.cache/gstreamer-1.0/registry.arm.bin")) and not fileContains("/etc/crontab", "registry.arm.bin"):
+		if isfile("/home/root/.cache/gstreamer-1.0/registry.arm.bin"):
+			Console().ePopen("sed -i '$a@reboot root rm -f /home/root/.cache/gstreamer-1.0/registry.arm.bin' /etc/crontab")
+		else:
+			print("[UsageConfig] No registry.arm.bin?")
+	if fileContains("/etc/network/interfaces","iface eth0 inet static") and not fileContains("/etc/network/interfaces","iface wlan0 inet dhcp") or fileContains("/etc/network/interfaces","iface wlan0 inet static") and fileContains("/run/ifstate","wlan0=wlan0"):
+		config.usage.dns = ConfigSelection(default = "custom", choices = [("custom", _("Static IP or Custom")), ("google", _("Google DNS")), ("cloudflare", _("Cloudfare")), ("opendns-familyshield", _("OpenDNS FamilyShield")), ("opendns-home", _("OpenDNS Home"))])
+	else:
+		config.usage.dns = ConfigSelection(default = "dhcp-router", choices = [("dhcp-router", _("DHCP router")), ("custom", _("Static IP or Custom")), ("google", _("Google DNS")), ("cloudflare", _("Cloudfare")), ("opendns-familyshield", _("OpenDNS FamilyShield")), ("opendns-home", _("OpenDNS Home"))])
 	config.usage.subnetwork = ConfigYesNo(default=True)
 	config.usage.subnetwork_cable = ConfigYesNo(default=True)
 	config.usage.subnetwork_terrestrial = ConfigYesNo(default=True)

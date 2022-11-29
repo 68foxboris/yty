@@ -1,5 +1,4 @@
-from os import unlink, makedirs, listdir
-from os.path import isfile, exists
+import os
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Screens.HelpMenu import HelpableScreen
@@ -111,10 +110,10 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			self["introduction"].setText(self.edittext)
 			self["DefaultInterfaceAction"].setEnabled(False)
 
-		if num_configured_if < 2 and isfile("/etc/default_gw"):
-			unlink("/etc/default_gw")
+		if num_configured_if < 2 and os.path.exists("/etc/default_gw"):
+			os.unlink("/etc/default_gw")
 
-		if isfile("/etc/default_gw"):
+		if os.path.exists("/etc/default_gw"):
 			fp = open('/etc/default_gw', 'r')
 			result = fp.read()
 			fp.close()
@@ -131,7 +130,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 				active_int = False
 			self.list.append(self.buildInterfaceList(x[1], _(x[0]), default_int, active_int))
 
-		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			self["key_blue"].setText(_("Network wizard"))
 		self["list"].setList(self.list)
 
@@ -140,7 +139,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 		num_if = len(self.list)
 		old_default_gw = None
 		num_configured_if = len(iNetwork.getConfiguredAdapters())
-		if isfile("/etc/default_gw"):
+		if os.path.exists("/etc/default_gw"):
 			fp = open('/etc/default_gw', 'r')
 			old_default_gw = fp.read()
 			fp.close()
@@ -150,7 +149,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			fp.close()
 			self.restartLan()
 		elif old_default_gw and num_configured_if < 2:
-			unlink("/etc/default_gw")
+			os.unlink("/etc/default_gw")
 			self.restartLan()
 
 	def okbuttonClick(self):
@@ -187,7 +186,7 @@ class NetworkAdapterSelection(Screen, HelpableScreen):
 			self.session.open(MessageBox, _("Finished configuring your network"), type=MessageBox.TYPE_INFO, timeout=10, default=False)
 
 	def openNetworkWizard(self):
-		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			try:
 				from Plugins.SystemPlugins.NetworkWizard.NetworkWizard import NetworkWizard
 			except ImportError:
@@ -204,7 +203,7 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		HelpableScreen.__init__(self)
 		self.setTitle(_("Configure nameservers"))
 		self.backupNameserverList = iNetwork.getNameserverList()[:]
-		print("[NetworkSetup] backup-list:", self.backupNameserverList)
+		print("backup-list:", self.backupNameserverList)
 
 		self["key_red"] = StaticText(_("Cancel"))
 		self["key_green"] = StaticText(_("Add"))
@@ -237,10 +236,21 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 
 	def createConfig(self):
 		self.nameservers = iNetwork.getNameserverList()
-		self.nameserverEntries = [NoSave(ConfigIP(default=nameserver)) for nameserver in self.nameservers]
+		if config.usage.dns.value == 'google':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[8, 8, 8, 8])), NoSave(ConfigIP(default=[8, 8, 4, 4]))]
+		elif config.usage.dns.value == 'cloudflare':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[1, 1, 1, 1])), NoSave(ConfigIP(default=[1, 0, 0, 1]))]
+		elif config.usage.dns.value == 'opendns-familyshield':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[208, 67, 222, 123])), NoSave(ConfigIP(default=[208, 67, 220, 123]))]
+		elif config.usage.dns.value == 'opendns-home':
+			self.nameserverEntries = [NoSave(ConfigIP(default=[208, 67, 222, 222])), NoSave(ConfigIP(default=[208, 67, 220, 220]))]
+		elif config.usage.dns.value == 'custom' or config.usage.dns.value == 'dhcp-router':
+			self.nameserverEntries = [NoSave(ConfigIP(default=nameserver)) for nameserver in self.nameservers]
 
 	def createSetup(self):
 		self.list = []
+		self.DNSEntry = getConfigListEntry(_("Nameserver configuration"), config.usage.dns)
+		self.list.append(self.DNSEntry)
 
 		i = 1
 		for x in self.nameserverEntries:
@@ -250,20 +260,18 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self["config"].list = self.list
 
 	def ok(self):
+		self.RefreshNameServerUsed()
 		iNetwork.clearNameservers()
 		for nameserver in self.nameserverEntries:
 			iNetwork.addNameserver(nameserver.value)
 		iNetwork.writeNetworkConfig()
+		config.usage.dns.save()
 		self.close()
 
 	def run(self):
 		self.ok()
 
 	def cancel(self):
-		iNetwork.clearNameservers()
-		print("restore backup-list:", self.backupNameserverList)
-		for nameserver in self.backupNameserverList:
-			iNetwork.addNameserver(nameserver)
 		self.close()
 
 	def add(self):
@@ -272,10 +280,17 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self.createSetup()
 
 	def remove(self):
-		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
+		print("currentIndex:", self["config"].getCurrentIndex())
 		index = self["config"].getCurrentIndex()
 		if index < len(self.nameservers):
 			iNetwork.removeNameserver(self.nameservers[index])
+			self.createConfig()
+			self.createSetup()
+
+	def RefreshNameServerUsed(self):
+		print("[NetworkSetup] currentIndex:", self["config"].getCurrentIndex())
+		index = self["config"].getCurrentIndex()
+		if index < len(self.nameservers):
 			self.createConfig()
 			self.createSetup()
 
@@ -284,7 +299,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 	def __init__(self, session, networkinfo, essid=None):
 		Screen.__init__(self, session)
 		HelpableScreen.__init__(self)
-		self.setTitle(_("Network setup"))
+		self.setTitle(_("Network Setup"))
 		if isinstance(networkinfo, (list, tuple)):
 			self.iface = networkinfo[0]
 			self.essid = networkinfo[1]
@@ -399,7 +414,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			self.encryptionlist.append(("Unencrypted", _("Unencrypted")))
 			self.encryptionlist.append(("WEP", "WEP"))
 			self.encryptionlist.append(("WPA", "WPA"))
-			if not exists("/tmp/bcm/" + self.iface):
+			if not os.path.exists("/tmp/bcm/" + self.iface):
 				self.encryptionlist.append(("WPA/WPA2", "WPA/WPA2"))
 			self.encryptionlist.append(("WPA2", "WPA2"))
 			self.weplist = []
@@ -426,7 +441,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			self.dhcpdefault = False
 		self.hasGatewayConfigEntry = NoSave(ConfigYesNo(default=self.dhcpdefault or False))
 		self.gatewayConfigEntry = NoSave(ConfigIP(default=iNetwork.getAdapterAttribute(self.iface, "gateway") or [0, 0, 0, 0]))
-		nameserver = (iNetwork.getNameserverList(dhcp=True) + [[0, 0, 0, 0]] * 2)[0:2]
+		nameserver = (iNetwork.getNameserverList() + [[0, 0, 0, 0]] * 2)[0:2]
 		self.primaryDNS = NoSave(ConfigIP(default=nameserver[0]))
 		self.secondaryDNS = NoSave(ConfigIP(default=nameserver[1]))
 
@@ -455,7 +470,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 						self.extended = callFnc
 						if "configStrings" in p.fnc:
 							self.configStrings = p.fnc["configStrings"]
-						isExistBcmWifi = exists("/tmp/bcm/" + self.iface)
+						isExistBcmWifi = os.path.exists("/tmp/bcm/" + self.iface)
 						if not isExistBcmWifi:
 							self.hiddenSSID = getConfigListEntry(_("Hidden network"), config.plugins.wlan.hiddenessid)
 							self.list.append(self.hiddenSSID)
@@ -850,7 +865,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 					self.extendedSetup = ('extendedSetup', menuEntryDescription, self.extended)
 					menu.append((menuEntryName, self.extendedSetup))
 
-		if isfile(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
+		if os.path.exists(resolveFilename(SCOPE_PLUGINS, "SystemPlugins/NetworkWizard/networkwizard.xml")):
 			menu.append((_("Network wizard"), "openwizard"))
 
 		return menu
@@ -901,7 +916,6 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 
 	def restartfinishedCB(self, data):
 		if data:
-			self.updateStatusbar()
 			self.session.open(MessageBox, _("Finished restarting your network"), type=MessageBox.TYPE_INFO, timeout=10, default=False)
 
 	def dataAvail(self, data):
