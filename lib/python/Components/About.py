@@ -2,17 +2,19 @@
 import os
 import time
 import re
-from Tools.HardwareInfo import HardwareInfo
 from sys import maxsize, modules, version_info
-import socket, fcntl, struct
+import socket
+import fcntl
+import struct
 from subprocess import PIPE, Popen
+from Tools.HardwareInfo import HardwareInfo
 
 
 def _ifinfo(sock, addr, ifname):
-	iface = struct.pack('256s', ifname[:15])
+	iface = struct.pack('256s', bytes(ifname[:15], encoding="UTF-8"))
 	info  = fcntl.ioctl(sock.fileno(), addr, iface)
 	if addr == 0x8927:
-		return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1].upper()
+		return ''.join(['%02x:' % ord(chr(char)) for char in info[18:24]])[:-1].upper()
 	else:
 		return socket.inet_ntoa(info[20:24])
 
@@ -20,14 +22,14 @@ def _ifinfo(sock, addr, ifname):
 def getIfConfig(ifname):
 	ifreq = {'ifname': ifname}
 	infos = {}
-	sock  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	# offsets defined in /usr/include/linux/sockios.h on linux 2.6
-	infos['addr']    = 0x8915 # SIOCGIFADDR
+	infos['addr'] = 0x8915 # SIOCGIFADDR
 	infos['brdaddr'] = 0x8919 # SIOCGIFBRDADDR
-	infos['hwaddr']  = 0x8927 # SIOCSIFHWADDR
+	infos['hwaddr'] = 0x8927 # SIOCSIFHWADDR
 	infos['netmask'] = 0x891b # SIOCGIFNETMASK
 	try:
-		for k,v in infos.items():
+		for k, v in infos.items():
 			ifreq[k] = _ifinfo(sock, v, ifname)
 	except:
 		pass
@@ -236,7 +238,7 @@ def GetIPsFromNetworkInterfaces():
 	namestr = names.tobytes()
 	ifaces = []
 	for i in range(0, outbytes, struct_size):
-		iface_name = bytes.decode(namestr[i:i + 16]).split('\0', 1)[0]
+		iface_name = names.tobytes()[i:i + 16].decode().split('\0', 1)[0]
 		if iface_name != 'lo':
 			iface_addr = socket.inet_ntoa(namestr[i + 20:i + 24])
 			ifaces.append((iface_name, iface_addr))
