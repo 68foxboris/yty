@@ -23,6 +23,7 @@ import Components.Task
 # Import smtplib for the actual sending function
 import smtplib
 import base64
+import sys
 
 # Here are the email package modules we'll need
 from email.mime.multipart import MIMEMultipart
@@ -130,6 +131,10 @@ class LogManagerPoller:
 		self.TrimTimer.startLongTimer(3600) #once an hour
 
 	def JobTrash(self):
+		try:
+			sys.set_int_max_str_digits(0)
+		except AttributeError:
+			pass
 		ctimeLimit = int(time()) - int(config.crash.daysloglimit.value * 3600 * 24)
 		allowedBytes = 1024*1024 * int(config.crash.sizeloglimit.value)
 
@@ -505,6 +510,7 @@ class LogManager(Screen):
 
 class LogManagerViewLog(Screen):
 	def __init__(self, session, selected):
+		self.session = session
 		Screen.__init__(self, session)
 		self.setTitle(selected)
 		self.logfile = config.crash.debug_path.value + selected
@@ -526,29 +532,47 @@ class LogManagerViewLog(Screen):
 
 	def layoutFinished(self):
 		sf = getSkinFactor()
-		font = gFont("Console", int(18 * sf))
+		font = gFont("Console", int(16 * sf))
 		if not int(fontRenderClass.getInstance().getLineHeight(font)):
-			font = gFont("Regular", int(18 * sf))
+			font = gFont("Regular", int(16 * sf))
 		self["list"].instance.setFont(font)
 		fontwidth = getTextBoundarySize(self.instance, font, self["list"].instance.size(), _(" ")).width()
-		listwidth = int(self["list"].instance.size().width() / fontwidth)
+		listwidth = int(self["list"].instance.size().width() / fontwidth) - 2
 		if path.exists(self.logfile):
-			for line in open(self.logfile).readlines():
-				line = line.replace('\t', ' ' * 9)
-				if len(line) > listwidth:
-					pos = 0
-					offset = 0
-					readyline = True
-					while readyline:
-						a = " " * offset + line[pos:pos + listwidth - offset]
-						self.log.append(a)
-						if len(line[pos + listwidth - offset:]):
-							pos += listwidth - offset
-							offset = 20
-						else:
-							readyline = False
-				else:
-					self.log.append(line)
+			try:
+				for line in open(self.logfile).readlines():
+					line = line.replace("\t", " " * 9)
+					if len(line) > listwidth:
+						pos = 0
+						offset = 0
+						readyline = True
+						while readyline:
+							a = " " * offset + line[pos:pos + listwidth - offset]
+							self.log.append(a)
+							if len(line[pos + listwidth - offset:]):
+								pos += listwidth - offset
+								offset = 19
+							else:
+								readyline = False
+					else:
+						self.log.append(line)
+			except UnicodeDecodeError:
+				for line in open(self.logfile, encoding="ISO 8859-1").readlines():
+					line = line.replace("\t", " " * 9)
+					if len(line) > listwidth:
+						pos = 0
+						offset = 0
+						readyline = True
+						while readyline:
+							a = " " * offset + line[pos:pos + listwidth - offset]
+							self.log.append(a)
+							if len(line[pos + listwidth - offset:]):
+								pos += listwidth - offset
+								offset = 19
+							else:
+								readyline = False
+					else:
+						self.log.append(line)
 		else:
 			self.log = [_("file can not displayed - file not found")]
 		self["list"].setList(self.log)
@@ -571,6 +595,7 @@ class LogManagerFb(Screen):
 			else:
 				logpath = "/"
 
+		self.session = session
 		Screen.__init__(self, session)
 
 		self["list"] = FileList(logpath, matchingPattern="^.*")
